@@ -4,7 +4,22 @@ import { prisma } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
+// GET /api/auth/signup — check if signup is allowed
+export async function GET() {
+  const userCount = await prisma.user.count();
+  return NextResponse.json({ signupAllowed: userCount === 0 });
+}
+
+// POST /api/auth/signup — only works when no users exist (first-time setup)
 export async function POST(request: Request) {
+  const userCount = await prisma.user.count();
+  if (userCount > 0) {
+    return NextResponse.json(
+      { error: "Registration is closed. Contact your admin." },
+      { status: 403 },
+    );
+  }
+
   let body: { name?: string; email?: string; password?: string };
   try {
     body = await request.json();
@@ -20,14 +35,6 @@ export async function POST(request: Request) {
 
   if (password.length < 8) {
     return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
-  }
-
-  const existing = await prisma.user.findUnique({
-    where: { email: email.trim().toLowerCase() },
-  });
-
-  if (existing) {
-    return NextResponse.json({ error: "Email already registered." }, { status: 409 });
   }
 
   const hash = await bcrypt.hash(password, 10);

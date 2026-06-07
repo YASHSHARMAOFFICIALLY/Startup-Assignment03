@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { aggregate } from "@/lib/sheet-sync";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords } from "@/lib/api-utils";
-import { MOCK_DASHBOARD } from "@/lib/mock-data";
 import { fmtCurrency, fmtCurrencyOrDash, fmtPercentOrDash, rankBadgeClass } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
 import { Panel } from "@/components/ui/panel";
@@ -24,14 +23,14 @@ export default async function LeaderboardPage({
         const range = resolvePeriod(period, null, null, new Date());
         return aggregate(records, range.from, range.to, range.label);
       })()
-    : MOCK_DASHBOARD;
+    : { closers: [], setters: [] };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
       <PageHeader
         title="Leaderboard"
         subtitle="Full rep rankings by performance."
-        badge={!hasData ? <span className="text-brand-accent text-xs">(demo data)</span> : undefined}
+        badge={!hasData ? <span className="text-brand-accent text-xs">(no data — sync an offer first)</span> : undefined}
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

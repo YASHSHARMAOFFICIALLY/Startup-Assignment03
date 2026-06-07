@@ -10,11 +10,11 @@ const SKIP_IF_SYNCED_WITHIN_MS = 4 * 60 * 1000; // 4 minutes
 
 // GET /api/cron/sync — called by Vercel Cron every 5 minutes
 export async function GET(request: Request) {
-  // Verify cron secret (Vercel sends this automatically)
+  // Verify cron secret (required)
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 

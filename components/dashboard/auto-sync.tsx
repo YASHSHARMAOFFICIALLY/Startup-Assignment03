@@ -8,16 +8,20 @@ export function AutoSync() {
   useEffect(() => {
     const sync = async () => {
       try {
-        const res = await fetch("/api/cron/sync");
-        if (res.ok) {
-          const data = await res.json();
-          const synced = data.offers?.filter(
-            (o: { status: string }) => o.status === "synced",
-          );
-          if (synced?.length > 0) {
-            // Refresh the page to show new data
-            window.location.reload();
-          }
+        // Fetch all offers, then sync each one
+        const offersRes = await fetch("/api/offers");
+        if (!offersRes.ok) return;
+        const offers = await offersRes.json();
+
+        let synced = false;
+        for (const offer of offers) {
+          if (!offer.closerSheetUrl || !offer.phoneSetterSheetUrl || !offer.dmSetterSheetUrl) continue;
+          const res = await fetch(`/api/offers/${offer.id}/sync`, { method: "POST" });
+          if (res.ok) synced = true;
+        }
+
+        if (synced) {
+          window.location.reload();
         }
       } catch {
         // Silent — auto-sync shouldn't interrupt the user

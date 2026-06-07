@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
@@ -22,6 +22,7 @@ function AuthForm() {
   const authError = searchParams.get("error");
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [signupAllowed, setSignupAllowed] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,6 +31,14 @@ function AuthForm() {
     authError === "CredentialsSignin" ? "Invalid email or password." : null,
   );
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Check if signup is allowed (no users yet)
+  useEffect(() => {
+    fetch("/api/auth/signup")
+      .then((r) => r.json())
+      .then((d) => { if (d.signupAllowed) { setSignupAllowed(true); setMode("signup"); } })
+      .catch(() => {});
+  }, []);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,7 +117,8 @@ function AuthForm() {
           </p>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs — only show when signup is allowed */}
+        {signupAllowed && (
         <div className="flex rounded-lg border border-brand-border overflow-hidden">
           <button
             type="button"
@@ -133,6 +143,7 @@ function AuthForm() {
             Sign Up
           </button>
         </div>
+        )}
 
         {/* Messages */}
         {error && (
