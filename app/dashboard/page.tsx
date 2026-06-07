@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { getServerSession } from "next-auth";
 
 import type { DashboardData } from "@/lib/types";
 import { MOCK_DASHBOARD } from "@/lib/mock-data";
 import { aggregate } from "@/lib/sheet-sync";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
-import { APP_CONFIG } from "@/lib/config";
+import { authOptions } from "@/lib/auth";
 import { readAllRecords } from "@/lib/api-utils";
 import { fmtCurrency, fmtCurrencyOrDash, fmtPercentOrDash, rankBadgeClass } from "@/lib/formatters";
 import { th, tdNum, trHover } from "@/lib/table-styles";
@@ -50,6 +51,8 @@ export default async function DashboardPage({
   const from = params.from ?? null;
   const to = params.to ?? null;
 
+  const session = await getServerSession(authOptions);
+  const userName = session?.user?.name ?? "there";
   const { data, source, error } = await loadDashboardData(period, from, to);
   const { closerKPIs, setterKPIs, closers, setters } = data;
 
@@ -80,7 +83,7 @@ export default async function DashboardPage({
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-4 sm:gap-6">
       {/* Welcome Text */}
       <PageHeader
-        title={`Welcome back, ${APP_CONFIG.userName} \u{1F44B}`}
+        title={`Welcome back, ${userName} \u{1F44B}`}
         subtitle="Here's your team's performance overview."
         badge={
           source === "mock" ? (
