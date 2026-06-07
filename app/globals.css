@@ -1,0 +1,204 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* shadcn/ui token system (retained for any components/ui/* primitives) */
+@layer base {
+  :root,
+  .dark {
+    --background: 240 5% 4%;
+    --foreground: 0 0% 100%;
+    --card: 220 7% 8%;
+    --card-foreground: 0 0% 100%;
+    --popover: 220 7% 8%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 38 92% 50%;
+    --primary-foreground: 240 5% 4%;
+    --secondary: 228 7% 13%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 220 7% 8%;
+    --muted-foreground: 240 5% 65%;
+    --accent: 228 7% 13%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 228 6% 16%;
+    --input: 228 6% 16%;
+    --ring: 38 92% 50%;
+    --radius: 0.75rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-brand-bg text-brand-textPrimary;
+  }
+}
+
+/* ============================================================================
+ * Reference dashboard custom CSS — keyframes, gradient borders, scrollbar.
+ * (Relocated from the reference's inline <style> block so it applies app-wide.)
+ * ========================================================================== */
+
+/* Keyframes are always defined; usage is gated by reduced-motion below */
+@keyframes drawLine {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
+@keyframes popIn {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  80% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+@keyframes waveFlow {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100px);
+  }
+}
+@keyframes ambientBreathe {
+  0%,
+  100% {
+    transform: translate(-50%, 0) scale(1);
+    opacity: 0.03;
+  }
+  50% {
+    transform: translate(-50%, 20px) scale(1.05);
+    opacity: 0.05;
+  }
+}
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Stagger classes only animate when motion is allowed */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-stagger-1 {
+    animation: slideUpFade 0.7s ease-out 0.1s both;
+  }
+  .animate-stagger-2 {
+    animation: slideUpFade 0.7s ease-out 0.2s both;
+  }
+  .animate-stagger-3 {
+    animation: slideUpFade 0.7s ease-out 0.3s both;
+  }
+  .animate-stagger-4 {
+    animation: slideUpFade 0.7s ease-out 0.4s both;
+  }
+  .animate-stagger-5 {
+    animation: slideUpFade 0.7s ease-out 0.5s both;
+  }
+}
+
+/* Users who prefer reduced motion see content instantly */
+@media (prefers-reduced-motion: reduce) {
+  .animate-stagger-1,
+  .animate-stagger-2,
+  .animate-stagger-3,
+  .animate-stagger-4,
+  .animate-stagger-5 {
+    animation: none;
+  }
+}
+
+/* Subtle Gradient Border System */
+.gradient-border-card {
+  position: relative;
+}
+.gradient-border-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(217, 180, 86, 0.03) 50%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 10;
+  transition: background 0.5s ease;
+}
+.group:hover.gradient-border-card::after,
+.gradient-border-card:hover::after {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(217, 180, 86, 0.1) 50%,
+    rgba(255, 255, 255, 0.06) 100%
+  );
+}
+
+/* Horizontal scroll shadow indicator for tables */
+.overflow-x-auto {
+  background:
+    linear-gradient(to right, var(--scroll-bg, #0A0A0B) 30%, transparent),
+    linear-gradient(to left, var(--scroll-bg, #0A0A0B) 30%, transparent),
+    linear-gradient(to right, rgba(255,255,255,0.06), transparent 15px),
+    linear-gradient(to left, rgba(255,255,255,0.06), transparent 15px);
+  background-position: left center, right center, left center, right center;
+  background-repeat: no-repeat;
+  background-size: 20px 100%, 20px 100%, 15px 100%, 15px 100%;
+  background-attachment: local, local, scroll, scroll;
+}
+
+/* Disable decorative/infinite animations for reduced-motion users.
+   Hover transitions are kept — they provide functional feedback. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* Custom scrollbar for webkit */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
