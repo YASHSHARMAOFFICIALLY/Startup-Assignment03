@@ -5,34 +5,14 @@ import {
   Wallet,
   Target,
   Percent,
-  ArrowUp,
-  ArrowDown,
+  TrendingUp,
+  TrendingDown,
   type LucideIcon,
 } from "lucide-react";
 
 import { AnimatedNumber, type NumberFormat } from "@/components/dashboard/animated-number";
 import { Sparkline } from "@/components/dashboard/sparkline";
 import type { DashboardData } from "@/lib/types";
-
-const STAGGER_CLASSES = [
-  "animate-stagger-1",
-  "animate-stagger-2",
-  "animate-stagger-3",
-  "animate-stagger-4",
-] as const;
-
-function DeltaBadge({ value }: { value: number }) {
-  const negative = value < 0;
-  const Icon = negative ? ArrowDown : ArrowUp;
-  const color = negative ? "text-brand-negative" : "text-brand-positive";
-  return (
-    <div className="flex items-center text-[11px] font-medium">
-      <Icon size={12} className={`mr-1 ${color}`} />
-      <span className={color}>{`${value}%`}</span>
-      <span className="ml-1 text-brand-textFaint">vs prior period</span>
-    </div>
-  );
-}
 
 function MetricCard({
   icon: Icon,
@@ -51,27 +31,39 @@ function MetricCard({
   trend: number[];
   index: number;
 }) {
+  const isPositive = delta >= 0;
+  const DeltaIcon = isPositive ? TrendingUp : TrendingDown;
+
   return (
-    <div className={`bg-brand-bg/90 backdrop-blur-md rounded-xl relative overflow-hidden group hover:bg-brand-surface/50 transition-colors duration-500 ${STAGGER_CLASSES[index] ?? ""} gradient-border-card flex flex-col`}>
-      <div className="p-5 pb-2 relative z-10">
-        <div className="flex items-center space-x-2 mb-3">
-          <div className="flex items-center justify-center rounded-lg bg-brand-iconBg p-2">
-            <Icon
-              size={18}
-              className="text-brand-colHeader group-hover:text-brand-textPrimary transition-colors"
-            />
+    <div
+      className="group relative rounded-xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 transition-all duration-300 hover:border-white/[0.12] hover:from-white/[0.06] animate-stagger-1"
+      style={{ animationDelay: `${100 + index * 80}ms` }}
+    >
+      {/* Label row */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-accent/10">
+            <Icon size={16} className="text-brand-accent" />
           </div>
-          <span className="text-xs font-medium text-brand-textMuted group-hover:text-brand-textSecondary transition-colors">
-            {label}
-          </span>
+          <span className="text-sm text-brand-textMuted">{label}</span>
         </div>
-        <div className="text-[26px] font-semibold text-brand-textPrimary tracking-tight mb-2 tabular-nums">
-          <AnimatedNumber value={value} format={format} delay={200 + index * 100} />
-        </div>
-        <DeltaBadge value={delta} />
       </div>
-      <div className="mt-auto h-12 w-full opacity-60">
-        <Sparkline data={trend} />
+
+      {/* Value */}
+      <div className="text-3xl font-semibold text-brand-textPrimary tracking-tight tabular-nums mb-3">
+        <AnimatedNumber value={value} format={format} delay={150 + index * 80} />
+      </div>
+
+      {/* Delta + Sparkline row */}
+      <div className="flex items-end justify-between">
+        <div className={`flex items-center gap-1.5 text-xs font-medium ${isPositive ? "text-emerald-400" : "text-red-400"}`}>
+          <DeltaIcon size={14} />
+          <span className="tabular-nums">{Math.abs(delta)}%</span>
+          <span className="text-brand-textFaint font-normal">vs prior</span>
+        </div>
+        <div className="w-20 h-8 opacity-40 group-hover:opacity-70 transition-opacity">
+          <Sparkline data={trend} />
+        </div>
       </div>
     </div>
   );
