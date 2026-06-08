@@ -10,7 +10,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        "bg-brand-bg/90 backdrop-blur-sm rounded-lg p-5 shadow-[0_8px_30px_rgba(0,0,0,0.1)] gradient-border-card",
+        "bg-white/[0.02] rounded-xl p-5",
         className,
       )}
     >

@@ -170,7 +170,7 @@ export function Topbar() {
   const userImage = session?.user?.image ?? APP_CONFIG.userAvatar;
 
   return (
-    <header className="flex justify-between items-center px-4 lg:px-8 py-4 lg:py-6 border-b border-brand-border/40 backdrop-blur-md bg-transparent z-20">
+    <header className="flex justify-between items-center px-4 lg:px-8 py-3 lg:py-4 border-b border-white/[0.03] bg-transparent z-20">
       <div className="flex items-center gap-2">
         <MobileMenuButton />
         <OfferSelector />

@@ -9,14 +9,14 @@ export function PageHeader({
 }) {
   return (
     <div className="animate-stagger-1">
-      <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-brand-textPrimary mb-1">
-        {title}
-      </h1>
-      {(subtitle || badge) && (
-        <p className="text-sm text-brand-textMuted">
-          {subtitle}
-          {badge && <span className="ml-2">{badge}</span>}
-        </p>
+      <div className="flex items-center gap-3">
+        <h1 className="text-lg font-normal tracking-tight text-brand-textPrimary">
+          {title}
+        </h1>
+        {badge && <span>{badge}</span>}
+      </div>
+      {subtitle && (
+        <p className="text-[11px] text-brand-textFaint mt-0.5">{subtitle}</p>
       )}
     </div>
   );

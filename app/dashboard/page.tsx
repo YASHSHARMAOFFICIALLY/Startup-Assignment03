@@ -86,19 +86,14 @@ export default async function DashboardPage({
 
       {/* Welcome */}
       <div className="animate-stagger-1">
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-brand-textPrimary">
-          Welcome back, {userName}
-        </h1>
-        <div className="flex items-center gap-3 mt-1">
-          <p className="text-sm text-brand-textMuted">
-            Your team&apos;s performance overview
-          </p>
+        <h1 className="text-xl font-normal tracking-tight text-brand-textSecondary">
+          {userName}
           {source === "mock" && (
-            <span className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              Demo data
+            <span className="ml-3 text-[10px] font-medium uppercase tracking-widest text-brand-textFaint">
+              demo
             </span>
           )}
-        </div>
+        </h1>
       </div>
 
       {/* Error */}
@@ -112,14 +107,12 @@ export default async function DashboardPage({
       )}
 
       {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCards data={data} />
-      </div>
+      <MetricCards data={data} />
 
       {/* Leaderboard */}
-      <div className="rounded-xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-5 sm:p-6 animate-stagger-4">
+      <div className="rounded-xl bg-white/[0.02] p-5 sm:p-6 animate-stagger-4">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-base font-medium text-brand-textPrimary">Leaderboard</h2>
+          <h2 className="text-xs font-normal text-brand-textFaint uppercase tracking-[0.1em]">Leaderboard</h2>
           <Link
             href="/leaderboard"
             className="group flex items-center gap-1.5 text-xs text-brand-textMuted hover:text-brand-textPrimary transition-colors"
