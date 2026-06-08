@@ -57,3 +57,14 @@ model Record {
   @@index([offerId])
   @@index([offerId, type])
 }
+
+model Rep {
+  id          String   @id @default(cuid())
+  displayName String
+  aliases     String[]
+  roles       String[] // "closer" | "phone" | "dm"
+  status      String   @default("active")
+  targets     Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
