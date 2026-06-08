@@ -1,13 +1,16 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
-import { readAllRecords } from "@/lib/api-utils";
+import { readAllRecords, buildAliasMap } from "@/lib/api-utils";
 import type { PhoneRecord, DmRecord } from "@/lib/sheet-sync";
 import { fmtCurrency } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
 import { Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FunnelBar } from "@/components/ui/funnel-bar";
+import { ObjectionPanel } from "@/components/ui/objection-panel";
 
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
@@ -15,15 +18,16 @@ function inRange(d: string, from: string | null, to: string | null) {
   return (from === null || d >= from) && (to === null || d <= to);
 }
 
-function buildPhoneStats(records: PhoneRecord[]) {
+function buildPhoneStats(records: PhoneRecord[], aliasMap: Map<string, string>) {
   const byRep = new Map<string, { hours: number; dials: number; pickups: number; qConvos: number; booked: number; shows: number; noShows: number; closed: number; revenue: number; cash: number }>();
   for (const r of records) {
     if (!r.name) continue;
-    const cur = byRep.get(r.name) ?? { hours: 0, dials: 0, pickups: 0, qConvos: 0, booked: 0, shows: 0, noShows: 0, closed: 0, revenue: 0, cash: 0 };
+    const name = aliasMap.get(r.name) ?? r.name;
+    const cur = byRep.get(name) ?? { hours: 0, dials: 0, pickups: 0, qConvos: 0, booked: 0, shows: 0, noShows: 0, closed: 0, revenue: 0, cash: 0 };
     cur.hours += r.hoursWorked; cur.dials += r.dials; cur.pickups += r.pickups;
     cur.qConvos += r.qConvos; cur.booked += r.booked; cur.shows += r.shows;
     cur.noShows += r.noShows; cur.closed += r.closed; cur.revenue += r.revenue; cur.cash += r.cash;
-    byRep.set(r.name, cur);
+    byRep.set(name, cur);
   }
   return Array.from(byRep.entries())
     .map(([name, v]) => ({
@@ -35,15 +39,16 @@ function buildPhoneStats(records: PhoneRecord[]) {
     .sort((a, b) => b.booked - a.booked);
 }
 
-function buildDmStats(records: DmRecord[]) {
+function buildDmStats(records: DmRecord[], aliasMap: Map<string, string>) {
   const byRep = new Map<string, { convos: number; swipeUps: number; followUps: number; booked: number; liveCalls: number; setsClosed: number; revenue: number; cash: number }>();
   for (const r of records) {
     if (!r.name) continue;
-    const cur = byRep.get(r.name) ?? { convos: 0, swipeUps: 0, followUps: 0, booked: 0, liveCalls: 0, setsClosed: 0, revenue: 0, cash: 0 };
+    const name = aliasMap.get(r.name) ?? r.name;
+    const cur = byRep.get(name) ?? { convos: 0, swipeUps: 0, followUps: 0, booked: 0, liveCalls: 0, setsClosed: 0, revenue: 0, cash: 0 };
     cur.convos += r.convos; cur.swipeUps += r.swipeUps; cur.followUps += r.followUps;
     cur.booked += r.booked; cur.liveCalls += r.liveCalls; cur.setsClosed += r.setsClosed;
     cur.revenue += r.revenue; cur.cash += r.cash;
-    byRep.set(r.name, cur);
+    byRep.set(name, cur);
   }
   return Array.from(byRep.entries())
     .map(([name, v]) => ({
@@ -54,18 +59,27 @@ function buildDmStats(records: DmRecord[]) {
     .sort((a, b) => b.booked - a.booked);
 }
 
+type Channel = "all" | "phone" | "dm";
+const CHANNELS: { key: Channel; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "phone", label: "Phone" },
+  { key: "dm", label: "DM" },
+];
+
 export default async function SetterKpisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; channel?: string }>;
 }) {
-  const period = ((await searchParams).period as PeriodKey) || "last-month";
-  const records = await readAllRecords();
+  const params = await searchParams;
+  const period = (params.period as PeriodKey) || "last-month";
+  const channel = (CHANNELS.find((c) => c.key === params.channel)?.key ?? "all") as Channel;
+  const [records, aliasMap] = await Promise.all([readAllRecords(), buildAliasMap()]);
   const range = resolvePeriod(period, null, null, new Date());
   const phone = records.phone.filter((r) => inRange(r.date, range.from, range.to));
   const dm = records.dm.filter((r) => inRange(r.date, range.from, range.to));
-  const phoneStats = buildPhoneStats(phone);
-  const dmStats = buildDmStats(dm);
+  const phoneStats = buildPhoneStats(phone, aliasMap);
+  const dmStats = buildDmStats(dm, aliasMap);
   const hasData = phone.length > 0 || dm.length > 0;
 
   /* Phone summary aggregates */
@@ -80,6 +94,13 @@ export default async function SetterKpisPage({
   const dmAvgBook = dmStats.length > 0 ? Math.round(dmStats.reduce((s, r) => s + r.bookRate, 0) / dmStats.length) : 0;
   const dmAvgShow = dmStats.length > 0 ? Math.round(dmStats.reduce((s, r) => s + r.showRate, 0) / dmStats.length) : 0;
 
+  /* Funnel totals */
+  const phoneFunnelDials = phoneStats.reduce((s, r) => s + r.dials, 0);
+  const phoneFunnelPickups = phoneStats.reduce((s, r) => s + r.pickups, 0);
+  const phoneFunnelQConvos = phoneStats.reduce((s, r) => s + r.qConvos, 0);
+  const dmFunnelConvos = dmStats.reduce((s, r) => s + r.convos, 0);
+  const dmFunnelFollowUps = dmStats.reduce((s, r) => s + r.followUps, 0);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
       <PageHeader
@@ -88,8 +109,31 @@ export default async function SetterKpisPage({
         badge={!hasData ? <span className="text-brand-accent text-xs">(no data for this period)</span> : undefined}
       />
 
+      {/* Channel toggle */}
+      <div className="flex gap-1">
+        {CHANNELS.map((c) => {
+          const p = new URLSearchParams();
+          if (params.period) p.set("period", params.period);
+          if (c.key !== "all") p.set("channel", c.key);
+          const href = `/setter-kpis${p.toString() ? `?${p}` : ""}`;
+          return (
+            <Link
+              key={c.key}
+              href={href}
+              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+                c.key === channel
+                  ? "bg-brand-accent/15 text-brand-accent font-medium"
+                  : "text-brand-textFaint hover:text-brand-textSecondary"
+              }`}
+            >
+              {c.label}
+            </Link>
+          );
+        })}
+      </div>
+
       {/* Phone Setters */}
-      <Panel className="animate-stagger-2">
+      {(channel === "all" || channel === "phone") && <Panel className="animate-stagger-2">
         <h2 className="text-[15px] font-medium text-brand-textPrimary mb-4">
           Phone Setters
           <span className="ml-2 text-xs text-brand-textFaint font-normal">({phoneStats.length} reps)</span>
@@ -116,6 +160,17 @@ export default async function SetterKpisPage({
                 <div className="text-xs text-brand-textFaint mb-1">Avg Show%</div>
                 <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneAvgShow}%</div>
               </div>
+            </div>
+
+            <div className="mb-5">
+              <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">Phone Funnel</h3>
+              <FunnelBar stages={[
+                { label: "Dials", value: phoneFunnelDials },
+                { label: "Pickups", value: phoneFunnelPickups },
+                { label: "Q Convos", value: phoneFunnelQConvos },
+                { label: "Booked", value: phoneTotalBooked },
+                { label: "Shows", value: phoneTotalShows },
+              ]} />
             </div>
 
             <div className="overflow-x-auto">
@@ -156,10 +211,12 @@ export default async function SetterKpisPage({
             </div>
           </>
         )}
-      </Panel>
+      </Panel>}
+
+      {(channel === "all" || channel === "phone") && phoneStats.length > 0 && <ObjectionPanel entries={phone} title="Phone" />}
 
       {/* DM Setters */}
-      <Panel className="animate-stagger-3">
+      {(channel === "all" || channel === "dm") && <Panel className="animate-stagger-3">
         <h2 className="text-[15px] font-medium text-brand-textPrimary mb-4">
           DM Setters
           <span className="ml-2 text-xs text-brand-textFaint font-normal">({dmStats.length} reps)</span>
@@ -186,6 +243,16 @@ export default async function SetterKpisPage({
                 <div className="text-xs text-brand-textFaint mb-1">Avg Show%</div>
                 <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmAvgShow}%</div>
               </div>
+            </div>
+
+            <div className="mb-5">
+              <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">DM Funnel</h3>
+              <FunnelBar stages={[
+                { label: "Convos", value: dmFunnelConvos },
+                { label: "Follow-Ups", value: dmFunnelFollowUps },
+                { label: "Booked", value: dmTotalBooked },
+                { label: "Live Calls", value: dmTotalLive },
+              ]} />
             </div>
 
             <div className="overflow-x-auto">
@@ -222,7 +289,9 @@ export default async function SetterKpisPage({
             </div>
           </>
         )}
-      </Panel>
+      </Panel>}
+
+      {(channel === "all" || channel === "dm") && dmStats.length > 0 && <ObjectionPanel entries={dm} title="DM" />}
     </div>
   );
 }

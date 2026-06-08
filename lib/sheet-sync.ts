@@ -293,7 +293,7 @@ const inRange = (d: string, from: string | null, to: string | null) =>
   (from === null || d >= from) && (to === null || d <= to);
 
 // Preceding period of equal length (for "vs prior" deltas).
-function priorRange(from: string | null, to: string | null) {
+export function priorRange(from: string | null, to: string | null) {
   if (!from || !to) return { from: null, to: null };
   const f = new Date(`${from}T00:00:00Z`);
   const t = new Date(`${to}T00:00:00Z`);
@@ -308,7 +308,12 @@ export function aggregate(
   from: string | null,
   to: string | null,
   label: string,
+  aliasMap?: Map<string, string>,
 ): DashboardData {
+  const resolveName = aliasMap
+    ? (name: string) => aliasMap.get(name) ?? name
+    : (name: string) => name;
+
   const closer = records.closer.filter((r) => inRange(r.date, from, to));
   const phone = records.phone.filter((r) => inRange(r.date, from, to));
   const dm = records.dm.filter((r) => inRange(r.date, from, to));
@@ -357,11 +362,12 @@ export function aggregate(
   const closersMap = new Map<string, { cash: number; closed: number; calls: number }>();
   for (const r of closer) {
     if (!r.name) continue;
-    const c = closersMap.get(r.name) ?? { cash: 0, closed: 0, calls: 0 };
+    const name = resolveName(r.name);
+    const c = closersMap.get(name) ?? { cash: 0, closed: 0, calls: 0 };
     c.cash += r.cash;
     c.closed += r.dealsClosed;
     c.calls += r.totalCalls;
-    closersMap.set(r.name, c);
+    closersMap.set(name, c);
   }
   const closers: CloserRep[] = Array.from(closersMap.entries())
     .map(([name, v], i) => ({
@@ -369,6 +375,7 @@ export function aggregate(
       name,
       rank: 0,
       cashCollected: v.cash,
+      dealsClosed: v.closed,
       bookedToClose: v.calls > 0 ? pct(v.closed, v.calls) : null,
       avgDealValue: v.closed > 0 ? round(v.cash / v.closed) : null,
     }))
@@ -378,10 +385,19 @@ export function aggregate(
   const settersMap = new Map<string, { calls: number; rev: number }>();
   for (const r of phone) {
     if (!r.name) continue;
-    const s = settersMap.get(r.name) ?? { calls: 0, rev: 0 };
+    const name = resolveName(r.name);
+    const s = settersMap.get(name) ?? { calls: 0, rev: 0 };
     s.calls += r.booked;
     s.rev += r.revenue;
-    settersMap.set(r.name, s);
+    settersMap.set(name, s);
+  }
+  for (const r of dm) {
+    if (!r.name) continue;
+    const name = resolveName(r.name);
+    const s = settersMap.get(name) ?? { calls: 0, rev: 0 };
+    s.calls += r.booked;
+    s.rev += r.revenue;
+    settersMap.set(name, s);
   }
   const setters: SetterRep[] = Array.from(settersMap.entries())
     .map(([name, v], i) => ({

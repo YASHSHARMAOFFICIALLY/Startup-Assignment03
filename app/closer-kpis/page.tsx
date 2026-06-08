@@ -1,13 +1,15 @@
 export const dynamic = "force-dynamic";
 
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
-import { readAllRecords } from "@/lib/api-utils";
+import { readAllRecords, buildAliasMap } from "@/lib/api-utils";
 import type { CloserRecord } from "@/lib/sheet-sync";
 import { fmtCurrency } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
 import { Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FunnelBar } from "@/components/ui/funnel-bar";
+import { ObjectionPanel } from "@/components/ui/objection-panel";
 
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
@@ -15,7 +17,7 @@ function inRange(d: string, from: string | null, to: string | null) {
   return (from === null || d >= from) && (to === null || d <= to);
 }
 
-function buildCloserStats(records: CloserRecord[]) {
+function buildCloserStats(records: CloserRecord[], aliasMap: Map<string, string>) {
   const byRep = new Map<string, {
     totalCalls: number; noShows: number; cancellations: number; reschedules: number;
     liveCalls: number; offers: number; deposits: number; dealsClosed: number;
@@ -25,7 +27,8 @@ function buildCloserStats(records: CloserRecord[]) {
 
   for (const r of records) {
     if (!r.name) continue;
-    const cur = byRep.get(r.name) ?? {
+    const name = aliasMap.get(r.name) ?? r.name;
+    const cur = byRep.get(name) ?? {
       totalCalls: 0, noShows: 0, cancellations: 0, reschedules: 0,
       liveCalls: 0, offers: 0, deposits: 0, dealsClosed: 0,
       revenue: 0, cash: 0, mrr: 0, ratings: [], objections: [],
@@ -43,7 +46,7 @@ function buildCloserStats(records: CloserRecord[]) {
     cur.mrr += r.mrr;
     if (r.dayRating > 0) cur.ratings.push(r.dayRating);
     if (r.objection) cur.objections.push(r.objection);
-    byRep.set(r.name, cur);
+    byRep.set(name, cur);
   }
 
   return Array.from(byRep.entries())
@@ -94,16 +97,21 @@ export default async function CloserKpisPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const period = ((await searchParams).period as PeriodKey) || "last-month";
-  const records = await readAllRecords();
+  const [records, aliasMap] = await Promise.all([readAllRecords(), buildAliasMap()]);
   const range = resolvePeriod(period, null, null, new Date());
   const filtered = records.closer.filter((r) => inRange(r.date, range.from, range.to));
-  const stats = buildCloserStats(filtered);
+  const stats = buildCloserStats(filtered, aliasMap);
 
   const totalCash = stats.reduce((s, r) => s + r.cash, 0);
   const totalRevenue = stats.reduce((s, r) => s + r.revenue, 0);
   const totalDeals = stats.reduce((s, r) => s + r.dealsClosed, 0);
   const avgShow = stats.length > 0 ? Math.round(stats.reduce((s, r) => s + r.showRate, 0) / stats.length) : 0;
   const avgClose = stats.length > 0 ? Math.round(stats.reduce((s, r) => s + r.bookedToClose, 0) / stats.length) : 0;
+
+  const funnelCalls = stats.reduce((s, r) => s + r.totalCalls, 0);
+  const funnelLive = stats.reduce((s, r) => s + r.liveCalls, 0);
+  const funnelOffers = stats.reduce((s, r) => s + r.offers, 0);
+  const funnelClosed = totalDeals;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
@@ -143,7 +151,17 @@ export default async function CloserKpisPage({
             </div>
           </div>
 
-          <Panel className="animate-stagger-3 overflow-x-auto">
+          <Panel className="animate-stagger-3">
+            <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">Closer Funnel</h3>
+            <FunnelBar stages={[
+              { label: "Total Calls", value: funnelCalls },
+              { label: "Live Calls", value: funnelLive },
+              { label: "Offers", value: funnelOffers },
+              { label: "Closed", value: funnelClosed },
+            ]} />
+          </Panel>
+
+          <Panel className="animate-stagger-4 overflow-x-auto">
             <table className="w-full min-w-[1100px]">
               <thead>
                 <tr>
@@ -183,6 +201,8 @@ export default async function CloserKpisPage({
               </tbody>
             </table>
           </Panel>
+
+          <ObjectionPanel entries={filtered} />
         </>
       )}
     </div>

@@ -7,7 +7,7 @@ import { MOCK_DASHBOARD } from "@/lib/mock-data";
 import { aggregate } from "@/lib/sheet-sync";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { authOptions } from "@/lib/auth";
-import { readAllRecords } from "@/lib/api-utils";
+import { readAllRecords, buildAliasMap } from "@/lib/api-utils";
 import { fmtCurrency, fmtCurrencyOrDash, fmtPercentOrDash, rankBadgeClass } from "@/lib/formatters";
 
 import { MetricCards } from "./_components/metric-cards";
@@ -28,8 +28,9 @@ async function loadDashboardData(
     if (records.closer.length === 0 && records.phone.length === 0 && records.dm.length === 0) {
       return { data: MOCK_DASHBOARD, source: "mock" };
     }
+    const aliasMap = await buildAliasMap();
     const range = resolvePeriod(period, from, to, new Date());
-    const data = aggregate(records, range.from, range.to, range.label);
+    const data = aggregate(records, range.from, range.to, range.label, aliasMap);
     return { data, source: "synced" };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to load dashboard data.";
