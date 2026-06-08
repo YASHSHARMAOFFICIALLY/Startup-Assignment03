@@ -314,3 +314,17 @@ export async function buildAliasMap(): Promise<Map<string, string>> {
   }
   return map;
 }
+
+export async function buildNameToRepIdMap(): Promise<Map<string, string>> {
+  const reps = await prisma.rep.findMany({
+    select: { id: true, displayName: true, aliases: true },
+  });
+  const map = new Map<string, string>();
+  for (const rep of reps) {
+    map.set(rep.displayName, rep.id);
+    for (const alias of rep.aliases) {
+      map.set(alias, rep.id);
+    }
+  }
+  return map;
+}
