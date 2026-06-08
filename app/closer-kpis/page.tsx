@@ -131,31 +131,31 @@ export default async function CloserKpisPage({
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 animate-stagger-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-6 animate-stagger-2">
             <div>
-              <div className="text-xs text-brand-textFaint mb-1">Total Cash</div>
-              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalCash)}</div>
+              <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Total Cash</div>
+              <div className="text-lg font-light text-brand-textPrimary tabular-nums">{fmtCurrency(totalCash)}</div>
             </div>
             <div>
-              <div className="text-xs text-brand-textFaint mb-1">Revenue</div>
-              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalRevenue)}</div>
+              <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Revenue</div>
+              <div className="text-lg font-light text-brand-textPrimary tabular-nums">{fmtCurrency(totalRevenue)}</div>
             </div>
             <div>
-              <div className="text-xs text-brand-textFaint mb-1">Deals Closed</div>
-              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{totalDeals}</div>
+              <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Deals</div>
+              <div className="text-lg font-light text-brand-textPrimary tabular-nums">{totalDeals}</div>
             </div>
             <div>
-              <div className="text-xs text-brand-textFaint mb-1">Avg Show%</div>
-              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{avgShow}%</div>
+              <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Show%</div>
+              <div className="text-lg font-light text-brand-textPrimary tabular-nums">{avgShow}%</div>
             </div>
             <div>
-              <div className="text-xs text-brand-textFaint mb-1">Avg Close%</div>
-              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{avgClose}%</div>
+              <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Close%</div>
+              <div className="text-lg font-light text-brand-textPrimary tabular-nums">{avgClose}%</div>
             </div>
           </div>
 
           <Panel className="animate-stagger-3">
-            <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">Closer Funnel</h3>
+            <h3 className="text-[10px] font-normal text-brand-textFaint uppercase tracking-[0.1em] mb-3">Closer Funnel</h3>
             <FunnelBar stages={[
               { label: "Total Calls", value: funnelCalls },
               { label: "Live Calls", value: funnelLive },

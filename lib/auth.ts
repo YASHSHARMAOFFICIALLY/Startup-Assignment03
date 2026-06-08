@@ -2,7 +2,7 @@ import type { NextAuthOptions } from "next-auth";
 import type { Provider } from "next-auth/providers/index";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { verifyPassword } from "@/lib/users";
+import { findUserByEmail, verifyPassword } from "@/lib/users";
 
 // Validate NEXTAUTH_SECRET at runtime (not during build/generate)
 if (
@@ -48,6 +48,18 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/login" },
   providers,
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "credentials") return true;
+      if (!user.email) return false;
+
+      const existing = await findUserByEmail(user.email);
+      if (!existing) return false;
+
+      user.id = existing.id;
+      user.name = existing.name;
+      user.image = existing.image ?? user.image;
+      return true;
+    },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;

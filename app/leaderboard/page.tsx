@@ -142,47 +142,47 @@ function PodiumHero({
   const rest = top3.slice(1);
 
   const medalColors = [
-    { bg: "rgba(245,158,11,0.04)", border: "rgba(245,158,11,0.2)", badge: rankBadgeClass(1), text: "text-brand-gold", shadow: "shadow-[0_0_20px_rgba(245,158,11,0.06)]" },
-    { bg: "rgba(192,192,192,0.03)", border: "rgba(192,192,192,0.12)", badge: rankBadgeClass(2), text: "text-brand-silver", shadow: "" },
-    { bg: "rgba(205,127,50,0.03)", border: "rgba(205,127,50,0.12)", badge: rankBadgeClass(3), text: "text-brand-bronze", shadow: "" },
+    { bg: "rgba(255,255,255,0.02)", badge: rankBadgeClass(1), text: "text-brand-gold" },
+    { bg: "rgba(255,255,255,0.015)", badge: rankBadgeClass(2), text: "text-brand-silver" },
+    { bg: "rgba(255,255,255,0.01)", badge: rankBadgeClass(3), text: "text-brand-bronze" },
   ];
 
   return (
-    <div className="space-y-2 mb-5">
+    <div className="space-y-1.5 mb-5">
       {/* #1 — hero row */}
       <div
-        className={`flex items-center gap-3.5 p-4 rounded-xl border ${medalColors[0].shadow}`}
-        style={{ background: medalColors[0].bg, borderColor: medalColors[0].border }}
+        className="flex items-center gap-3.5 p-4 rounded-xl"
+        style={{ background: medalColors[0].bg }}
       >
-        <div className={`w-11 h-11 rounded-full flex items-center justify-center text-[13px] font-bold shrink-0 ${medalColors[0].badge}`}>
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 ${medalColors[0].badge}`}>
           1
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold text-brand-textPrimary truncate">{first.name}</div>
+          <div className="text-sm font-normal text-brand-textPrimary truncate">{first.name}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className={`text-lg font-bold ${medalColors[0].text}`}>{formatValue(first)}</div>
+          <div className={`text-lg font-light ${medalColors[0].text}`}>{formatValue(first)}</div>
           <RankChange current={first} priorMap={priorMap} />
         </div>
       </div>
 
       {/* #2, #3 — compact rows */}
       {rest.map((rep, i) => {
-        const mi = i + 1; // medal index 1 or 2
+        const mi = i + 1;
         return (
           <div
             key={rep.name}
-            className="flex items-center gap-3.5 px-4 py-3 rounded-lg border"
-            style={{ background: medalColors[mi].bg, borderColor: medalColors[mi].border }}
+            className="flex items-center gap-3.5 px-4 py-2.5 rounded-lg"
+            style={{ background: medalColors[mi].bg }}
           >
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${medalColors[mi].badge}`}>
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0 ${medalColors[mi].badge}`}>
               {rep.rank}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-semibold text-brand-textSecondary truncate">{rep.name}</div>
+              <div className="text-[13px] font-normal text-brand-textSecondary truncate">{rep.name}</div>
             </div>
             <div className="text-right shrink-0">
-              <div className={`text-[15px] font-semibold ${medalColors[mi].text}`}>{formatValue(rep)}</div>
+              <div className={`text-[14px] font-light ${medalColors[mi].text}`}>{formatValue(rep)}</div>
               <RankChange current={rep} priorMap={priorMap} />
             </div>
           </div>
@@ -244,7 +244,7 @@ export default async function LeaderboardPage({
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Closers */}
         <Panel className="animate-stagger-2">
-          <h2 className="text-[15px] font-medium text-brand-textPrimary mb-4">
+          <h2 className="text-[10px] font-normal text-brand-textFaint uppercase tracking-[0.1em] mb-4">
             Closers
             <span className="ml-2 text-xs text-brand-textFaint font-normal">({closers.length} reps)</span>
           </h2>
@@ -316,7 +316,7 @@ export default async function LeaderboardPage({
 
         {/* Setters */}
         <Panel className="animate-stagger-3">
-          <h2 className="text-[15px] font-medium text-brand-textPrimary mb-4">
+          <h2 className="text-[10px] font-normal text-brand-textFaint uppercase tracking-[0.1em] mb-4">
             Setters
             <span className="ml-2 text-xs text-brand-textFaint font-normal">({setters.length} reps)</span>
           </h2>

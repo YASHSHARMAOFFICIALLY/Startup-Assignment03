@@ -53,10 +53,10 @@ function PeriodSelector() {
     <div className="flex flex-wrap items-center gap-2">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button className="flex items-center space-x-2 px-3 py-1.5 rounded-md border border-brand-border bg-transparent text-xs text-brand-textSecondary hover:bg-white/[0.04] hover:border-brand-border/80 transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg focus-visible:outline-none">
-            <Calendar size={14} className="text-brand-textFaint" />
+          <button className="flex items-center space-x-2 px-2.5 py-1.5 rounded-md bg-transparent text-xs text-brand-textFaint hover:text-brand-textSecondary hover:bg-white/[0.03] transition-colors duration-200 focus-visible:ring-1 focus-visible:ring-brand-accent focus-visible:outline-none">
+            <Calendar size={13} className="opacity-40" />
             <span>{label}</span>
-            <ChevronDown size={14} className="text-brand-textFaint ml-2" />
+            <ChevronDown size={12} className="opacity-30" />
           </button>
         </DropdownMenuTrigger>
         <DropdownMenuContent
@@ -134,10 +134,10 @@ function OfferSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center space-x-2 px-3 py-1.5 rounded-md border border-brand-border bg-transparent text-xs text-brand-textSecondary hover:bg-white/[0.04] hover:border-brand-border/80 transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg focus-visible:outline-none">
-          <Layers size={14} className="text-brand-textFaint" />
+        <button className="flex items-center space-x-2 px-2.5 py-1.5 rounded-md bg-transparent text-xs text-brand-textFaint hover:text-brand-textSecondary hover:bg-white/[0.03] transition-colors duration-200 focus-visible:ring-1 focus-visible:ring-brand-accent focus-visible:outline-none">
+          <Layers size={13} className="opacity-40" />
           <span>{label}</span>
-          <ChevronDown size={14} className="text-brand-textFaint ml-2" />
+          <ChevronDown size={12} className="opacity-30" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -188,15 +188,12 @@ export function Topbar() {
               <Image
                 src={userImage}
                 alt={userName}
-                width={36}
-                height={36}
-                className="rounded-full object-cover border border-brand-border group-hover:border-brand-textMuted transition-colors duration-300"
+                width={28}
+                height={28}
+                className="rounded-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-200"
               />
               <div className="hidden lg:flex flex-col text-left">
-                <span className="text-[11px] text-brand-textFaint leading-none mb-0.5 group-hover:text-brand-textMuted transition-colors">
-                  Signed in as
-                </span>
-                <span className="text-sm font-medium text-brand-textPrimary leading-none">
+                <span className="text-[11px] text-brand-textFaint leading-none">
                   {userName}
                 </span>
               </div>
