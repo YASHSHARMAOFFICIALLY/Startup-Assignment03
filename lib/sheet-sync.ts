@@ -309,6 +309,7 @@ export function aggregate(
   to: string | null,
   label: string,
   aliasMap?: Map<string, string>,
+  commissionRate?: number,
 ): DashboardData {
   const resolveName = aliasMap
     ? (name: string) => aliasMap.get(name) ?? name
@@ -327,7 +328,7 @@ export function aggregate(
   const closerKPIs = {
     cashCollected: cCash,
     totalRevenue: sumBy(closer, (r) => r.revenue),
-    commissionsPaid: 0,
+    commissionsPaid: commissionRate ? Math.round(cCash * commissionRate / 100) : 0,
     dealsClosed: cClosed,
     noShows: sumBy(closer, (r) => r.noShows),
     cancellations: sumBy(closer, (r) => r.cancellations),

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { aggregate, priorRange } from "@/lib/sheet-sync";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords, buildAliasMap, buildNameToRepIdMap } from "@/lib/api-utils";
+import { readSettings } from "@/lib/settings";
 import type { CloserRep, SetterRep } from "@/lib/types";
 import { fmtCurrency, fmtCurrencyOrDash, fmtPercentOrDash, rankBadgeClass } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
@@ -212,9 +213,9 @@ export default async function LeaderboardPage({
   let priorSetters: SetterRep[] = [];
 
   if (hasData) {
-    const aliasMap = await buildAliasMap();
+    const [aliasMap, settings] = await Promise.all([buildAliasMap(), readSettings()]);
     const range = resolvePeriod(period, null, null, new Date());
-    const data = aggregate(records, range.from, range.to, range.label, aliasMap);
+    const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate);
     closers = sortClosers(data.closers, closerSort);
     setters = sortSetters(data.setters, setterSort);
 
