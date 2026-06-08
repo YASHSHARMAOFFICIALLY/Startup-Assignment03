@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 
+import Link from "next/link";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
-import { readAllRecords, buildAliasMap } from "@/lib/api-utils";
+import { readAllRecords, buildAliasMap, buildNameToRepIdMap } from "@/lib/api-utils";
 import type { CloserRecord } from "@/lib/sheet-sync";
 import { fmtCurrency } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
@@ -97,7 +98,7 @@ export default async function CloserKpisPage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const period = ((await searchParams).period as PeriodKey) || "last-month";
-  const [records, aliasMap] = await Promise.all([readAllRecords(), buildAliasMap()]);
+  const [records, aliasMap, nameToRepId] = await Promise.all([readAllRecords(), buildAliasMap(), buildNameToRepIdMap()]);
   const range = resolvePeriod(period, null, null, new Date());
   const filtered = records.closer.filter((r) => inRange(r.date, range.from, range.to));
   const stats = buildCloserStats(filtered, aliasMap);
@@ -183,7 +184,11 @@ export default async function CloserKpisPage({
               <tbody>
                 {stats.map((rep) => (
                   <tr key={rep.name} className={trHover}>
-                    <td className={`${td} font-medium text-brand-textSecondary`}>{rep.name}</td>
+                    <td className={`${td} font-medium text-brand-textSecondary`}>
+                      {nameToRepId.get(rep.name) ? (
+                        <Link href={`/rep-management/${nameToRepId.get(rep.name)}`} className="hover:text-brand-accent transition-colors">{rep.name}</Link>
+                      ) : rep.name}
+                    </td>
                     <td className={`${tdNum} text-right text-brand-textPrimary font-medium`}>{fmtCurrency(rep.cash)}</td>
                     <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtCurrency(rep.mrr)}</td>
                     <td className={`${tdNum} text-center text-brand-textPrimary`}>{rep.dealsClosed}</td>

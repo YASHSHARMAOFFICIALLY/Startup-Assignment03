@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { aggregate, priorRange } from "@/lib/sheet-sync";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
-import { readAllRecords, buildAliasMap } from "@/lib/api-utils";
+import { readAllRecords, buildAliasMap, buildNameToRepIdMap } from "@/lib/api-utils";
 import type { CloserRep, SetterRep } from "@/lib/types";
 import { fmtCurrency, fmtCurrencyOrDash, fmtPercentOrDash, rankBadgeClass } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
@@ -203,7 +203,7 @@ export default async function LeaderboardPage({
   const closerSort = (CLOSER_SORTS.find((s) => s.key === params.closerSort)?.key ?? "cash") as CloserSortKey;
   const setterSort = (SETTER_SORTS.find((s) => s.key === params.setterSort)?.key ?? "callsSet") as SetterSortKey;
 
-  const records = await readAllRecords();
+  const [records, nameToRepId] = await Promise.all([readAllRecords(), buildNameToRepIdMap()]);
   const hasData = records.closer.length > 0 || records.phone.length > 0 || records.dm.length > 0;
 
   let closers: CloserRep[] = [];
@@ -294,7 +294,11 @@ export default async function LeaderboardPage({
                             <span className="text-brand-textFaint ml-1">{rep.rank}</span>
                           )}
                         </td>
-                        <td className={`${td} font-medium text-brand-textSecondary`}>{rep.name}</td>
+                        <td className={`${td} font-medium text-brand-textSecondary`}>
+                          {nameToRepId.get(rep.name) ? (
+                            <Link href={`/rep-management/${nameToRepId.get(rep.name)}`} className="hover:text-brand-accent transition-colors">{rep.name}</Link>
+                          ) : rep.name}
+                        </td>
                         <td className={`${tdNum} text-right text-brand-textPrimary`}>{fmtCurrency(rep.cashCollected)}</td>
                         <td className={`${tdNum} text-center text-brand-textSecondary`}>{rep.dealsClosed}</td>
                         <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtPercentOrDash(rep.bookedToClose)}</td>
@@ -363,7 +367,11 @@ export default async function LeaderboardPage({
                             <span className="text-brand-textFaint ml-1">{rep.rank}</span>
                           )}
                         </td>
-                        <td className={`${td} font-medium text-brand-textSecondary`}>{rep.name}</td>
+                        <td className={`${td} font-medium text-brand-textSecondary`}>
+                          {nameToRepId.get(rep.name) ? (
+                            <Link href={`/rep-management/${nameToRepId.get(rep.name)}`} className="hover:text-brand-accent transition-colors">{rep.name}</Link>
+                          ) : rep.name}
+                        </td>
                         <td className={`${tdNum} text-center text-brand-textPrimary`}>{rep.callsSet}</td>
                         <td className={`${tdNum} text-right text-brand-textPrimary`}>{fmtCurrency(rep.revenueGenerated)}</td>
                         <td className={`${td} text-center`}>

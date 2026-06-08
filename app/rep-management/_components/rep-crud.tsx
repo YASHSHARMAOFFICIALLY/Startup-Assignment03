@@ -321,7 +321,7 @@ export function RepCrud({
                     <td
                       className={`${td} font-medium text-brand-textSecondary`}
                     >
-                      {rep.displayName}
+                      <Link href={`/rep-management/${rep.id}`} className="hover:text-brand-accent transition-colors">{rep.displayName}</Link>
                     </td>
                     <td className={td}>
                       <div className="flex gap-1 flex-wrap">
