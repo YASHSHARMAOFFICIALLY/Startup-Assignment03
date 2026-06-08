@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const SYNC_INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
 
 export function AutoSync() {
+  const router = useRouter();
+
   useEffect(() => {
     const sync = async () => {
       try {
@@ -21,7 +24,7 @@ export function AutoSync() {
         }
 
         if (synced) {
-          window.location.reload();
+          router.refresh();
         }
       } catch {
         // Silent — auto-sync shouldn't interrupt the user
@@ -30,7 +33,7 @@ export function AutoSync() {
 
     const interval = setInterval(sync, SYNC_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, []);
+  }, [router]);
 
   return null;
 }

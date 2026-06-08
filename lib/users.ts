@@ -6,7 +6,7 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 export async function findUserByEmail(email: string) {
-  return prisma.user.findUnique({ where: { email } });
+  return prisma.user.findUnique({ where: { email: email.trim().toLowerCase() } });
 }
 
 export async function verifyPassword(email: string, password: string) {
@@ -15,7 +15,7 @@ export async function verifyPassword(email: string, password: string) {
     await logAudit({
       action: "login_failed",
       resource: "user",
-      detail: `Unknown email: ${email}`,
+      detail: `Unknown email attempt (${email.slice(0, 3)}***)`,
     });
     return null;
   }

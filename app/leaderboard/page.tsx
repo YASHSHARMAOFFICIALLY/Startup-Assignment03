@@ -200,7 +200,7 @@ export default async function LeaderboardPage({
   searchParams: Promise<{ period?: string; closerSort?: string; setterSort?: string; offerId?: string }>;
 }) {
   const params = await searchParams;
-  const [records, nameToRepId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildNameToRepIdMap(), readSettings()]);
+  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
   const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
   const closerSort = (CLOSER_SORTS.find((s) => s.key === params.closerSort)?.key ?? "cash") as CloserSortKey;
   const setterSort = (SETTER_SORTS.find((s) => s.key === params.setterSort)?.key ?? "callsSet") as SetterSortKey;
@@ -212,7 +212,6 @@ export default async function LeaderboardPage({
   let priorSetters: SetterRep[] = [];
 
   if (hasData) {
-    const aliasMap = await buildAliasMap();
     const range = resolvePeriod(period, null, null, new Date());
     const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate);
     closers = sortClosers(data.closers, closerSort);

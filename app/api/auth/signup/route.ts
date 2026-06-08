@@ -12,14 +12,6 @@ export async function GET() {
 
 // POST /api/auth/signup — only works when no users exist (first-time setup)
 export async function POST(request: Request) {
-  const userCount = await prisma.user.count();
-  if (userCount > 0) {
-    return NextResponse.json(
-      { error: "Registration is closed. Contact your admin." },
-      { status: 403 },
-    );
-  }
-
   let body: { name?: string; email?: string; password?: string };
   try {
     body = await request.json();
@@ -39,13 +31,24 @@ export async function POST(request: Request) {
 
   const hash = await bcrypt.hash(password, 10);
 
-  await prisma.user.create({
-    data: {
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
-      password: hash,
-    },
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const count = await tx.user.count();
+      if (count > 0) throw new Error("closed");
+      await tx.user.create({
+        data: {
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          password: hash,
+        },
+      });
+    }, { isolationLevel: "Serializable" });
+  } catch {
+    return NextResponse.json(
+      { error: "Registration is closed. Contact your admin." },
+      { status: 403 },
+    );
+  }
 
   return NextResponse.json({ success: true }, { status: 201 });
 }
