@@ -23,9 +23,10 @@ async function loadDashboardData(
   period: PeriodKey,
   from: string | null,
   to: string | null,
+  offerId?: string,
 ): Promise<{ data: DashboardData; source: "synced" | "mock" | "error"; error?: string }> {
   try {
-    const records = await readAllRecords();
+    const records = await readAllRecords(offerId);
     if (records.closer.length === 0 && records.phone.length === 0 && records.dm.length === 0) {
       return { data: MOCK_DASHBOARD, source: "mock" };
     }
@@ -42,17 +43,18 @@ async function loadDashboardData(
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; from?: string; to?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string; offerId?: string }>;
 }) {
   const params = await searchParams;
   const settings = await readSettings();
   const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
   const from = params.from ?? null;
   const to = params.to ?? null;
+  const offerId = params.offerId || undefined;
 
   const session = await getServerSession(authOptions);
   const userName = session?.user?.name?.split(" ")[0] ?? "there";
-  const { data, source, error } = await loadDashboardData(period, from, to);
+  const { data, source, error } = await loadDashboardData(period, from, to, offerId);
   const { closerKPIs, setterKPIs, closers, setters } = data;
 
   const closerRows = Array.from({ length: LEADERBOARD_ROWS }, (_, i) => {

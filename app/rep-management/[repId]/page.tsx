@@ -52,11 +52,12 @@ export default async function RepProfilePage({
   searchParams,
 }: {
   params: Promise<{ repId: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; offerId?: string }>;
 }) {
   const { repId } = await params;
+  const sp = await searchParams;
   const settings = await readSettings();
-  const period = ((await searchParams).period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
+  const period = (sp.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
 
   const rep = await prisma.rep.findUnique({ where: { id: repId } });
   if (!rep) notFound();
@@ -70,7 +71,7 @@ export default async function RepProfilePage({
   aliasSet.add(rep.displayName);
   for (const a of rep.aliases) aliasSet.add(a);
 
-  const records = await readAllRecords();
+  const records = await readAllRecords(sp.offerId || undefined);
   const range = resolvePeriod(period, null, null, new Date());
   const inRange = (d: string) =>
     (range.from === null || d >= range.from) &&

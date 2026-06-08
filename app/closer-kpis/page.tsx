@@ -96,10 +96,11 @@ function mostCommon(arr: string[]): string {
 export default async function CloserKpisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; offerId?: string }>;
 }) {
-  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
-  const period = ((await searchParams).period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
+  const params = await searchParams;
+  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
+  const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
   const range = resolvePeriod(period, null, null, new Date());
   const filtered = records.closer.filter((r) => inRange(r.date, range.from, range.to));
   const stats = buildCloserStats(filtered, aliasMap);

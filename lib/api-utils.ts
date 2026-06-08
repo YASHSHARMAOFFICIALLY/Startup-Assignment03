@@ -149,8 +149,9 @@ export async function writeRecords(
   ]);
 }
 
-export async function readAllRecords(): Promise<RecordsBundle> {
-  const records = await prisma.record.findMany();
+export async function readAllRecords(offerId?: string): Promise<RecordsBundle> {
+  const where = offerId ? { offerId } : {};
+  const records = await prisma.record.findMany({ where });
 
   const closer: CloserRecord[] = [];
   const phone: PhoneRecord[] = [];

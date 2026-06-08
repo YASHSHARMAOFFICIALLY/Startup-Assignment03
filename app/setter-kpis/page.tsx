@@ -70,10 +70,10 @@ const CHANNELS: { key: Channel; label: string }[] = [
 export default async function SetterKpisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; channel?: string }>;
+  searchParams: Promise<{ period?: string; channel?: string; offerId?: string }>;
 }) {
   const params = await searchParams;
-  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
+  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
   const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
   const channel = (CHANNELS.find((c) => c.key === params.channel)?.key ?? "all") as Channel;
   const range = resolvePeriod(period, null, null, new Date());

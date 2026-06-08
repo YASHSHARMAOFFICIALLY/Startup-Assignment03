@@ -197,10 +197,10 @@ function PodiumHero({
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; closerSort?: string; setterSort?: string }>;
+  searchParams: Promise<{ period?: string; closerSort?: string; setterSort?: string; offerId?: string }>;
 }) {
   const params = await searchParams;
-  const [records, nameToRepId, settings] = await Promise.all([readAllRecords(), buildNameToRepIdMap(), readSettings()]);
+  const [records, nameToRepId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildNameToRepIdMap(), readSettings()]);
   const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
   const closerSort = (CLOSER_SORTS.find((s) => s.key === params.closerSort)?.key ?? "cash") as CloserSortKey;
   const setterSort = (SETTER_SORTS.find((s) => s.key === params.setterSort)?.key ?? "callsSet") as SetterSortKey;

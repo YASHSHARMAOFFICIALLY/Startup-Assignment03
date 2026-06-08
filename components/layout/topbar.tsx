@@ -1,8 +1,9 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Calendar, ChevronDown, LogOut } from "lucide-react";
+import { Calendar, ChevronDown, LogOut, Layers } from "lucide-react";
 import { useSession, signOut } from "next-auth/react";
 
 import { APP_CONFIG } from "@/lib/config";
@@ -99,6 +100,70 @@ function PeriodSelector() {
   );
 }
 
+function OfferSelector() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [offers, setOffers] = useState<{ id: string; name: string }[]>([]);
+
+  const currentOfferId = searchParams.get("offerId") || "";
+
+  const loadOffers = useCallback(async () => {
+    try {
+      const res = await fetch("/api/offers", { cache: "no-store" });
+      if (res.ok) setOffers(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => { loadOffers(); }, [loadOffers]);
+
+  // Don't render if 0 or 1 offer (no choice to make)
+  if (offers.length <= 1) return null;
+
+  function navigate(offerId: string) {
+    const params = new URLSearchParams(searchParams.toString());
+    if (offerId) params.set("offerId", offerId);
+    else params.delete("offerId");
+    router.push(`${pathname}?${params.toString()}`);
+  }
+
+  const label = currentOfferId
+    ? offers.find((o) => o.id === currentOfferId)?.name ?? "Offer"
+    : "All Offers";
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center space-x-2 px-3 py-1.5 rounded-md border border-brand-border bg-transparent text-xs text-brand-textSecondary hover:bg-white/[0.04] hover:border-brand-border/80 transition-colors duration-300 focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg focus-visible:outline-none">
+          <Layers size={14} className="text-brand-textFaint" />
+          <span>{label}</span>
+          <ChevronDown size={14} className="text-brand-textFaint ml-2" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="start"
+        className="border-brand-border bg-brand-surface text-brand-textSecondary"
+      >
+        <DropdownMenuItem
+          onClick={() => navigate("")}
+          className={`cursor-pointer text-xs focus:bg-brand-elevated focus:text-brand-textPrimary ${!currentOfferId ? "text-brand-textPrimary" : ""}`}
+        >
+          All Offers
+        </DropdownMenuItem>
+        {offers.map((o) => (
+          <DropdownMenuItem
+            key={o.id}
+            onClick={() => navigate(o.id)}
+            className={`cursor-pointer text-xs focus:bg-brand-elevated focus:text-brand-textPrimary ${currentOfferId === o.id ? "text-brand-textPrimary" : ""}`}
+          >
+            {o.name}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function Topbar() {
   const { data: session } = useSession();
   const userName = session?.user?.name ?? APP_CONFIG.userName;
@@ -108,6 +173,7 @@ export function Topbar() {
     <header className="flex justify-between items-center px-4 lg:px-8 py-4 lg:py-6 border-b border-brand-border/40 backdrop-blur-md bg-transparent z-20">
       <div className="flex items-center gap-2">
         <MobileMenuButton />
+        <OfferSelector />
         <PeriodSelector />
       </div>
 

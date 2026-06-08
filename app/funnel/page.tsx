@@ -1,9 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
-import { readAllRecords, buildAliasMap } from "@/lib/api-utils";
+import { readAllRecords } from "@/lib/api-utils";
 import { readSettings } from "@/lib/settings";
-import { aggregate } from "@/lib/sheet-sync";
 import { Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -15,15 +14,15 @@ const pct = (a: number, b: number) =>
 export default async function FunnelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; offerId?: string }>;
 }) {
-  const [records, aliasMap, settings] = await Promise.all([
-    readAllRecords(),
-    buildAliasMap(),
+  const params = await searchParams;
+  const [records, settings] = await Promise.all([
+    readAllRecords(params.offerId || undefined),
     readSettings(),
   ]);
   const period =
-    ((await searchParams).period as PeriodKey) ||
+    (params.period as PeriodKey) ||
     (settings.defaultPeriod as PeriodKey);
   const hasData =
     records.closer.length > 0 ||
@@ -79,16 +78,6 @@ export default async function FunnelPage({
 
   // Handoff seam: setter shows → closer total calls
   const handoffRate = pct(closerCalls, totalSetterShows);
-
-  // Also get aggregate for the KPI summary
-  const data = aggregate(
-    records,
-    range.from,
-    range.to,
-    range.label,
-    aliasMap,
-    settings.commissionRate,
-  );
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">

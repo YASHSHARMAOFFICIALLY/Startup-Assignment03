@@ -23,14 +23,14 @@ function getUnrecognizedNames(
 export default async function RepManagementPage({
   searchParams,
 }: {
-  searchParams: Promise<{ showArchived?: string }>;
+  searchParams: Promise<{ showArchived?: string; offerId?: string }>;
 }) {
   const params = await searchParams;
   const showArchived = params.showArchived === "true";
 
   const [reps, records, aliasMap] = await Promise.all([
     readReps(),
-    readAllRecords(),
+    readAllRecords(params.offerId || undefined),
     buildAliasMap(),
   ]);
 
