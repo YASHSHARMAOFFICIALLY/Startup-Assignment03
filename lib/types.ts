@@ -30,6 +30,7 @@ export interface CloserRep {
   name: string;
   rank: number;
   cashCollected: number;
+  dealsClosed: number;
   bookedToClose: number | null;
   avgDealValue: number | null;
 }

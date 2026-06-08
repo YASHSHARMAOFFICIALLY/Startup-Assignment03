@@ -28,9 +28,9 @@ export const MOCK_DASHBOARD: DashboardData = {
     cashCollected: 0,
   },
   closers: [
-    { id: "1", name: "Lucio", rank: 1, cashCollected: 10000, bookedToClose: 2, avgDealValue: 5000 },
-    { id: "2", name: "Adamo", rank: 2, cashCollected: 6000, bookedToClose: null, avgDealValue: 5000 },
-    { id: "3", name: "Charlie", rank: 3, cashCollected: 0, bookedToClose: null, avgDealValue: null },
+    { id: "1", name: "Lucio", rank: 1, cashCollected: 10000, dealsClosed: 2, bookedToClose: 2, avgDealValue: 5000 },
+    { id: "2", name: "Adamo", rank: 2, cashCollected: 6000, dealsClosed: 1, bookedToClose: null, avgDealValue: 5000 },
+    { id: "3", name: "Charlie", rank: 3, cashCollected: 0, dealsClosed: 0, bookedToClose: null, avgDealValue: null },
   ],
   setters: [
     { id: "1", name: "Fahima", rank: 1, callsSet: 39, revenueGenerated: 0 },
