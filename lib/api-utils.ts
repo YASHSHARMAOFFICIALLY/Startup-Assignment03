@@ -200,3 +200,117 @@ export function zodError(error: z.ZodError<unknown>) {
     })),
   };
 }
+
+/* ─── Rep operations ─────────────────────────────────────────────── */
+
+export const createRepSchema = z.object({
+  displayName: z.string().min(1, "Display name is required.").max(200),
+  aliases: z.array(z.string()).default([]),
+  roles: z.array(z.enum(["closer", "phone", "dm"])).default([]),
+  targets: z.record(z.string(), z.number()).default({}),
+});
+
+export const updateRepSchema = z.object({
+  displayName: z.string().min(1).max(200).optional(),
+  aliases: z.array(z.string()).optional(),
+  roles: z.array(z.enum(["closer", "phone", "dm"])).optional(),
+  status: z.enum(["active", "archived"]).optional(),
+  targets: z.record(z.string(), z.number()).optional(),
+});
+
+export type RepRow = {
+  id: string;
+  displayName: string;
+  aliases: string[];
+  roles: string[];
+  status: string;
+  targets: Record<string, number>;
+  createdAt: string;
+};
+
+function toRepRow(r: {
+  id: string;
+  displayName: string;
+  aliases: string[];
+  roles: string[];
+  status: string;
+  targets: unknown;
+  createdAt: Date;
+}): RepRow {
+  return {
+    id: r.id,
+    displayName: r.displayName,
+    aliases: r.aliases,
+    roles: r.roles,
+    status: r.status,
+    targets: (r.targets ?? {}) as Record<string, number>,
+    createdAt: r.createdAt.toISOString(),
+  };
+}
+
+export async function readReps(status?: string): Promise<RepRow[]> {
+  const where = status ? { status } : {};
+  const reps = await prisma.rep.findMany({ where, orderBy: { displayName: "asc" } });
+  return reps.map(toRepRow);
+}
+
+export async function createRep(
+  data: z.infer<typeof createRepSchema>,
+): Promise<RepRow> {
+  const rep = await prisma.rep.create({ data });
+  return toRepRow(rep);
+}
+
+export async function updateRep(
+  id: string,
+  data: z.infer<typeof updateRepSchema>,
+): Promise<RepRow | null> {
+  const existing = await prisma.rep.findUnique({ where: { id } });
+  if (!existing) return null;
+  const updated = await prisma.rep.update({ where: { id }, data });
+  return toRepRow(updated);
+}
+
+export async function deleteRep(id: string): Promise<boolean> {
+  const existing = await prisma.rep.findUnique({ where: { id } });
+  if (!existing) return false;
+  await prisma.rep.delete({ where: { id } });
+  return true;
+}
+
+export async function checkAliasConflict(
+  aliases: string[],
+  excludeRepId?: string,
+): Promise<string | null> {
+  const reps = await prisma.rep.findMany({
+    select: { id: true, displayName: true, aliases: true },
+  });
+  for (const alias of aliases) {
+    const lower = alias.toLowerCase().trim();
+    if (!lower) continue;
+    for (const rep of reps) {
+      if (excludeRepId && rep.id === excludeRepId) continue;
+      if (
+        rep.aliases.some((a) => a.toLowerCase().trim() === lower) ||
+        rep.displayName.toLowerCase().trim() === lower
+      ) {
+        return `"${alias}" is already used by ${rep.displayName}.`;
+      }
+    }
+  }
+  return null;
+}
+
+export async function buildAliasMap(): Promise<Map<string, string>> {
+  const reps = await prisma.rep.findMany({
+    select: { displayName: true, aliases: true },
+  });
+  const map = new Map<string, string>();
+  for (const rep of reps) {
+    map.set(rep.displayName, rep.displayName);
+    for (const alias of rep.aliases) {
+      map.set(alias, rep.displayName);
+    }
+  }
+  return map;
+}
