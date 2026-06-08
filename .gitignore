@@ -43,3 +43,4 @@ data/users.json
 next-env.d.ts
 
 /lib/generated/prisma
+.superpowers/
