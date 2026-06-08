@@ -200,11 +200,10 @@ export default async function LeaderboardPage({
   searchParams: Promise<{ period?: string; closerSort?: string; setterSort?: string }>;
 }) {
   const params = await searchParams;
-  const period = (params.period as PeriodKey) || "last-month";
+  const [records, nameToRepId, settings] = await Promise.all([readAllRecords(), buildNameToRepIdMap(), readSettings()]);
+  const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
   const closerSort = (CLOSER_SORTS.find((s) => s.key === params.closerSort)?.key ?? "cash") as CloserSortKey;
   const setterSort = (SETTER_SORTS.find((s) => s.key === params.setterSort)?.key ?? "callsSet") as SetterSortKey;
-
-  const [records, nameToRepId] = await Promise.all([readAllRecords(), buildNameToRepIdMap()]);
   const hasData = records.closer.length > 0 || records.phone.length > 0 || records.dm.length > 0;
 
   let closers: CloserRep[] = [];
@@ -213,7 +212,7 @@ export default async function LeaderboardPage({
   let priorSetters: SetterRep[] = [];
 
   if (hasData) {
-    const [aliasMap, settings] = await Promise.all([buildAliasMap(), readSettings()]);
+    const aliasMap = await buildAliasMap();
     const range = resolvePeriod(period, null, null, new Date());
     const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate);
     closers = sortClosers(data.closers, closerSort);

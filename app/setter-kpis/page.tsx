@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords, buildAliasMap, buildNameToRepIdMap } from "@/lib/api-utils";
+import { readSettings } from "@/lib/settings";
 import type { PhoneRecord, DmRecord } from "@/lib/sheet-sync";
 import { fmtCurrency } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
@@ -72,9 +73,9 @@ export default async function SetterKpisPage({
   searchParams: Promise<{ period?: string; channel?: string }>;
 }) {
   const params = await searchParams;
-  const period = (params.period as PeriodKey) || "last-month";
+  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
+  const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
   const channel = (CHANNELS.find((c) => c.key === params.channel)?.key ?? "all") as Channel;
-  const [records, aliasMap, nameToRepId] = await Promise.all([readAllRecords(), buildAliasMap(), buildNameToRepIdMap()]);
   const range = resolvePeriod(period, null, null, new Date());
   const phone = records.phone.filter((r) => inRange(r.date, range.from, range.to));
   const dm = records.dm.filter((r) => inRange(r.date, range.from, range.to));

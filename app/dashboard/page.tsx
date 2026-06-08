@@ -45,7 +45,8 @@ export default async function DashboardPage({
   searchParams: Promise<{ period?: string; from?: string; to?: string }>;
 }) {
   const params = await searchParams;
-  const period = (params.period as PeriodKey) || "last-month";
+  const settings = await readSettings();
+  const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
   const from = params.from ?? null;
   const to = params.to ?? null;
 

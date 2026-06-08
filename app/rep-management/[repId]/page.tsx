@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { readAllRecords, buildAliasMap } from "@/lib/api-utils";
+import { readSettings } from "@/lib/settings";
 import { aggregate, priorRange } from "@/lib/sheet-sync";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { fmtCurrency } from "@/lib/formatters";
@@ -54,7 +55,8 @@ export default async function RepProfilePage({
   searchParams: Promise<{ period?: string }>;
 }) {
   const { repId } = await params;
-  const period = ((await searchParams).period as PeriodKey) || "last-month";
+  const settings = await readSettings();
+  const period = ((await searchParams).period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
 
   const rep = await prisma.rep.findUnique({ where: { id: repId } });
   if (!rep) notFound();
