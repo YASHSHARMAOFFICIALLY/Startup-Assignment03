@@ -20,109 +20,140 @@ const STAGE_COLORS = [
   { dot: "bg-brand-positive", bar: "bg-brand-positive/80", text: "text-brand-positive" },
 ];
 
-/* ─── Funnel chart (true funnel shape) ─────────────────────────── */
+/* ─── Funnel chart (segmented trapezoid) ─────────────────────────── */
+
+const SEGMENT_FILLS = [
+  { top: "#3b82f6", bot: "#2563eb" },   // blue
+  { top: "#0ea5e9", bot: "#0284c7" },   // sky
+  { top: "#10b981", bot: "#059669" },   // emerald
+  { top: "#f59e0b", bot: "#d97706" },   // amber
+  { top: "#22c55e", bot: "#16a34a" },   // green
+];
 
 function FunnelChart({ stages }: { stages: { label: string; value: number }[] }) {
   const max = Math.max(...stages.map((s) => s.value), 1);
   const w = 700;
-  const h = 220;
-  const padX = 30;
+  const h = 260;
+  const padX = 10;
   const midY = h / 2;
-  const maxHalf = 90; // max half-height of funnel
-  const sectionW = (w - padX * 2) / (stages.length - 1);
+  const maxHalf = 100;
+  const gap = 4;
+  const totalGaps = (stages.length - 1) * gap;
+  const segW = (w - padX * 2 - totalGaps) / (stages.length - 1);
 
-  // Each stage maps to a vertical height proportional to its value
-  const heights = stages.map((s) => (s.value / max) * maxHalf);
+  const heights = stages.map((s) => Math.max((s.value / max) * maxHalf, 8));
 
-  // Build smooth funnel path — top edge and bottom edge
-  const topPoints = stages.map((_, i) => ({
-    x: padX + i * sectionW,
-    y: midY - heights[i],
-  }));
-  const botPoints = stages.map((_, i) => ({
-    x: padX + i * sectionW,
-    y: midY + heights[i],
-  }));
+  // Build trapezoid segments between consecutive stages
+  const segments = [];
+  for (let i = 0; i < stages.length - 1; i++) {
+    const x1 = padX + i * (segW + gap);
+    const x2 = x1 + segW;
+    const h1 = heights[i];
+    const h2 = heights[i + 1];
 
-  // Create smooth cubic bezier path
-  function smoothPath(pts: { x: number; y: number }[]): string {
-    if (pts.length < 2) return "";
-    let d = `M${pts[0].x},${pts[0].y}`;
-    for (let i = 0; i < pts.length - 1; i++) {
-      const curr = pts[i];
-      const next = pts[i + 1];
-      const cpx = (curr.x + next.x) / 2;
-      d += ` C${cpx},${curr.y} ${cpx},${next.y} ${next.x},${next.y}`;
-    }
-    return d;
+    // Trapezoid: top-left, top-right, bottom-right, bottom-left
+    const path = [
+      `M${x1},${midY - h1}`,
+      `L${x2},${midY - h2}`,
+      `L${x2},${midY + h2}`,
+      `L${x1},${midY + h1}`,
+      "Z",
+    ].join(" ");
+
+    const convRate = pct(stages[i + 1].value, stages[i].value);
+    const cx = (x1 + x2) / 2;
+
+    segments.push({ path, cx, convRate, idx: i });
   }
 
-  const topPath = smoothPath(topPoints);
-  const botPath = smoothPath(botPoints.slice().reverse());
-  const last = topPoints[topPoints.length - 1];
-  const firstBot = botPoints[botPoints.length - 1];
-  const fullPath = `${topPath} L${last.x},${firstBot.y} ${botPath.replace("M", "L")} Z`;
-
-  // Stage-to-stage conversion rates (positioned between stages)
-  const convRates = stages.slice(1).map((s, i) => ({
-    rate: pct(s.value, stages[i].value),
-    x: padX + (i + 0.5) * sectionW,
-    y: midY - heights[i] * 0.3,
-  }));
-
   return (
-    <div className="relative w-full py-4">
+    <div className="relative w-full">
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
         <defs>
-          <linearGradient id="funnelGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#93c5fd" stopOpacity="0.5" />
-            <stop offset="40%" stopColor="#7dd3fc" stopOpacity="0.35" />
-            <stop offset="70%" stopColor="#6ee7b7" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#86efac" stopOpacity="0.15" />
-          </linearGradient>
-          <linearGradient id="funnelStroke" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#60a5fa" />
-            <stop offset="100%" stopColor="#34d399" />
-          </linearGradient>
+          {SEGMENT_FILLS.map((c, i) => (
+            <linearGradient key={i} id={`seg${i}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={c.top} stopOpacity="0.6" />
+              <stop offset="100%" stopColor={c.bot} stopOpacity="0.25" />
+            </linearGradient>
+          ))}
         </defs>
 
-        {/* Funnel shape */}
-        <path d={fullPath} fill="url(#funnelGrad)" />
-        <path d={topPath} fill="none" stroke="url(#funnelStroke)" strokeWidth="2" />
-        <path
-          d={smoothPath(botPoints)}
-          fill="none"
-          stroke="url(#funnelStroke)"
-          strokeWidth="2"
-          opacity="0.5"
-        />
-
-        {/* Conversion rate pills between stages */}
-        {convRates.map((cr, i) => (
-          <g key={i}>
+        {/* Trapezoid segments */}
+        {segments.map((seg) => (
+          <g key={seg.idx}>
+            <path
+              d={seg.path}
+              fill={`url(#seg${seg.idx % SEGMENT_FILLS.length})`}
+              stroke={SEGMENT_FILLS[seg.idx % SEGMENT_FILLS.length].top}
+              strokeWidth="1"
+              strokeOpacity="0.3"
+            />
+            {/* Conversion pill on top */}
             <rect
-              x={cr.x - 26}
-              y={cr.y - 12}
-              width="52"
-              height="24"
-              rx="12"
+              x={seg.cx - 24}
+              y={midY - heights[seg.idx] - 28}
+              width="48"
+              height="22"
+              rx="11"
               fill="#111"
               stroke="#333"
-              strokeWidth="1"
+              strokeWidth="0.5"
             />
             <text
-              x={cr.x}
-              y={cr.y + 1}
+              x={seg.cx}
+              y={midY - heights[seg.idx] - 14}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize="11"
+              fontSize="10"
               fontWeight="600"
-              fill={cr.rate >= 50 ? "#34d399" : cr.rate >= 20 ? "#fbbf24" : "#f87171"}
+              fill={seg.convRate >= 50 ? "#34d399" : seg.convRate >= 20 ? "#fbbf24" : "#f87171"}
             >
-              {cr.rate}% →
+              {seg.convRate}% →
             </text>
           </g>
         ))}
+
+        {/* Stage labels at bottom */}
+        {stages.map((s, i) => {
+          const x = i === 0
+            ? padX
+            : i === stages.length - 1
+              ? padX + (stages.length - 2) * (segW + gap) + segW
+              : padX + (i - 0.5) * (segW + gap) + segW / 2;
+          return (
+            <text
+              key={s.label}
+              x={i === 0 ? padX + segW * 0.3 : i < stages.length - 1 ? padX + i * (segW + gap) - gap / 2 : padX + (stages.length - 2) * (segW + gap) + segW * 0.7}
+              y={midY + maxHalf + 24}
+              textAnchor="middle"
+              fontSize="11"
+              fill="#888"
+            >
+              {s.label}
+            </text>
+          );
+        })}
+
+        {/* Value labels inside segments */}
+        {stages.slice(0, -1).map((s, i) => {
+          const x1 = padX + i * (segW + gap);
+          const cx = x1 + segW / 2;
+          return (
+            <text
+              key={s.label}
+              x={cx}
+              y={midY + 4}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="13"
+              fontWeight="700"
+              fill="#fff"
+              opacity="0.9"
+            >
+              {s.value.toLocaleString()}
+            </text>
+          );
+        })}
       </svg>
     </div>
   );
