@@ -5,7 +5,6 @@ import {
   Wallet,
   Target,
   Percent,
-  Phone,
   ArrowUp,
   ArrowDown,
   type LucideIcon,
@@ -20,7 +19,6 @@ const STAGGER_CLASSES = [
   "animate-stagger-2",
   "animate-stagger-3",
   "animate-stagger-4",
-  "animate-stagger-5",
 ] as const;
 
 function DeltaBadge({ value }: { value: number }) {
@@ -80,14 +78,13 @@ function MetricCard({
 }
 
 export function MetricCards({ data }: { data: DashboardData }) {
-  const { closerKPIs, setterKPIs, deltas, trends } = data;
+  const { closerKPIs, deltas, trends } = data;
   return (
     <>
       <MetricCard icon={DollarSign} label="Total Revenue" value={closerKPIs.totalRevenue} format="currency" delta={deltas.totalRevenue} trend={trends.totalRevenue} index={0} />
       <MetricCard icon={Wallet} label="Cash Collected" value={closerKPIs.cashCollected} format="currency" delta={deltas.cashCollected} trend={trends.cashCollected} index={1} />
       <MetricCard icon={Target} label="Deals Closed" value={closerKPIs.dealsClosed} delta={deltas.dealsClosed} trend={trends.dealsClosed} index={2} />
-      <MetricCard icon={Phone} label="Calls Booked" value={setterKPIs.totalCallsSet} delta={0} trend={[]} index={3} />
-      <MetricCard icon={Percent} label="Close Rate" value={closerKPIs.closeRate} format="percent" delta={deltas.closeRate} trend={trends.closeRate} index={4} />
+      <MetricCard icon={Percent} label="Close Rate" value={closerKPIs.closeRate} format="percent" delta={deltas.closeRate} trend={trends.closeRate} index={3} />
     </>
   );
 }
