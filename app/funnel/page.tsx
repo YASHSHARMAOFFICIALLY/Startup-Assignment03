@@ -62,11 +62,11 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
     return { path, x, cx, hL, hR, idx: i, value: s.value, label: s.label };
   });
 
-  // Conversion rates between stages — centered between blocks, consistent Y
+  // Conversion rate for each stage (from previous stage), positioned on each block
   const pillY = midY - maxHalf - 26;
-  const convRates = stages.slice(1).map((s, i) => ({
-    rate: pct(s.value, stages[i].value),
-    x: blocks[i].x + segW + gap / 2,
+  const convRates = stages.map((s, i) => ({
+    rate: i === 0 ? 100 : pct(s.value, stages[i - 1].value),
+    x: blocks[i].cx,
   }));
 
   return (
@@ -117,32 +117,35 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
           </g>
         ))}
 
-        {/* Conversion pills between blocks — same row, evenly spaced */}
-        {convRates.map((cr, i) => (
-          <g key={i}>
-            <rect
-              x={cr.x - 22}
-              y={pillY}
-              width="44"
-              height="22"
-              rx="11"
-              fill="#111"
-              stroke="#333"
-              strokeWidth="0.5"
-            />
-            <text
-              x={cr.x}
-              y={pillY + 14}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="10"
-              fontWeight="600"
-              fill={cr.rate >= 50 ? "#34d399" : cr.rate >= 20 ? "#fbbf24" : "#f87171"}
-            >
-              {cr.rate}% →
-            </text>
-          </g>
-        ))}
+        {/* Conversion pills — one per stage */}
+        {convRates.map((cr, i) => {
+          const color = i === 0 ? "#60a5fa" : cr.rate >= 50 ? "#34d399" : cr.rate >= 20 ? "#fbbf24" : "#f87171";
+          return (
+            <g key={i}>
+              <rect
+                x={cr.x - 22}
+                y={pillY}
+                width="44"
+                height="22"
+                rx="11"
+                fill="#111"
+                stroke="#333"
+                strokeWidth="0.5"
+              />
+              <text
+                x={cr.x}
+                y={pillY + 14}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontSize="10"
+                fontWeight="600"
+                fill={color}
+              >
+                {cr.rate}% →
+              </text>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
