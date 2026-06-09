@@ -117,10 +117,13 @@ export default async function DashboardPage({
 
       <Panel className="animate-stagger-4">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-[15px] font-medium text-brand-textPrimary">Leaderboard</h2>
+          <div className="flex items-center gap-2">
+            <span className="text-lg">🏆</span>
+            <h2 className="text-[15px] font-medium text-brand-textPrimary">Leaderboard</h2>
+          </div>
           <Link
             href="/leaderboard"
-            className="flex items-center space-x-1.5 text-xs text-brand-textMuted border border-brand-border rounded-md px-3 py-1.5 min-h-[44px] hover:bg-white/[0.04] hover:text-brand-textPrimary transition-colors focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg focus-visible:outline-none"
+            className="flex items-center space-x-1.5 text-xs text-brand-textMuted border border-brand-border rounded-md px-3 py-1.5 hover:bg-white/[0.04] hover:text-brand-textPrimary transition-colors focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg focus-visible:outline-none"
           >
             <span>View full leaderboard</span>
             <ArrowRight size={12} />
