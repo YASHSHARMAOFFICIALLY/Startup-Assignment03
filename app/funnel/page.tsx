@@ -20,81 +20,109 @@ const STAGE_COLORS = [
   { dot: "bg-brand-positive", bar: "bg-brand-positive/80", text: "text-brand-positive" },
 ];
 
-/* ─── Funnel chart (SVG area chart) ─────────────────────────────── */
+/* ─── Funnel chart (true funnel shape) ─────────────────────────── */
 
 function FunnelChart({ stages }: { stages: { label: string; value: number }[] }) {
   const max = Math.max(...stages.map((s) => s.value), 1);
-  const w = 600;
-  const h = 200;
-  const padX = 20;
-  const padTop = 20;
-  const padBot = 10;
-  const usableW = w - padX * 2;
-  const usableH = h - padTop - padBot;
+  const w = 700;
+  const h = 220;
+  const padX = 30;
+  const midY = h / 2;
+  const maxHalf = 90; // max half-height of funnel
+  const sectionW = (w - padX * 2) / (stages.length - 1);
 
-  const points = stages.map((s, i) => {
-    const x = padX + (i / (stages.length - 1)) * usableW;
-    const y = padTop + usableH - (s.value / max) * usableH;
-    return { x, y };
-  });
+  // Each stage maps to a vertical height proportional to its value
+  const heights = stages.map((s) => (s.value / max) * maxHalf);
 
-  const topLine = points.map((p) => `${p.x},${p.y}`).join(" ");
-  const bottomLine = points.map((p) => `${p.x},${h - padBot}`).reverse().join(" ");
-  const areaPoints = `${topLine} ${bottomLine}`;
+  // Build smooth funnel path — top edge and bottom edge
+  const topPoints = stages.map((_, i) => ({
+    x: padX + i * sectionW,
+    y: midY - heights[i],
+  }));
+  const botPoints = stages.map((_, i) => ({
+    x: padX + i * sectionW,
+    y: midY + heights[i],
+  }));
+
+  // Create smooth cubic bezier path
+  function smoothPath(pts: { x: number; y: number }[]): string {
+    if (pts.length < 2) return "";
+    let d = `M${pts[0].x},${pts[0].y}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const curr = pts[i];
+      const next = pts[i + 1];
+      const cpx = (curr.x + next.x) / 2;
+      d += ` C${cpx},${curr.y} ${cpx},${next.y} ${next.x},${next.y}`;
+    }
+    return d;
+  }
+
+  const topPath = smoothPath(topPoints);
+  const botPath = smoothPath(botPoints.slice().reverse());
+  const last = topPoints[topPoints.length - 1];
+  const firstBot = botPoints[botPoints.length - 1];
+  const fullPath = `${topPath} L${last.x},${firstBot.y} ${botPath.replace("M", "L")} Z`;
+
+  // Stage-to-stage conversion rates (positioned between stages)
+  const convRates = stages.slice(1).map((s, i) => ({
+    rate: pct(s.value, stages[i].value),
+    x: padX + (i + 0.5) * sectionW,
+    y: midY - heights[i] * 0.3,
+  }));
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full py-4">
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
         <defs>
           <linearGradient id="funnelGrad" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.3" />
-            <stop offset="50%" stopColor="#34d399" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#22c55e" stopOpacity="0.1" />
+            <stop offset="0%" stopColor="#93c5fd" stopOpacity="0.5" />
+            <stop offset="40%" stopColor="#7dd3fc" stopOpacity="0.35" />
+            <stop offset="70%" stopColor="#6ee7b7" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#86efac" stopOpacity="0.15" />
+          </linearGradient>
+          <linearGradient id="funnelStroke" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#60a5fa" />
+            <stop offset="100%" stopColor="#34d399" />
           </linearGradient>
         </defs>
 
-        {/* Area fill */}
-        <polygon points={areaPoints} fill="url(#funnelGrad)" />
-
-        {/* Line */}
-        <polyline
-          points={topLine}
+        {/* Funnel shape */}
+        <path d={fullPath} fill="url(#funnelGrad)" />
+        <path d={topPath} fill="none" stroke="url(#funnelStroke)" strokeWidth="2" />
+        <path
+          d={smoothPath(botPoints)}
           fill="none"
-          stroke="#60a5fa"
+          stroke="url(#funnelStroke)"
           strokeWidth="2"
-          strokeLinejoin="round"
+          opacity="0.5"
         />
 
-        {/* Dots + percentage labels */}
-        {points.map((p, i) => {
-          const convRate = i === 0 ? 100 : pct(stages[i].value, stages[0].value);
-          const color = STAGE_COLORS[i] ?? STAGE_COLORS[0];
-          return (
-            <g key={stages[i].label}>
-              <circle cx={p.x} cy={p.y} r="4" fill="#030303" stroke="#60a5fa" strokeWidth="2" />
-              <rect
-                x={p.x - 22}
-                y={p.y - 28}
-                width="44"
-                height="20"
-                rx="4"
-                fill="#1a1a1a"
-                stroke="#333"
-                strokeWidth="0.5"
-              />
-              <text
-                x={p.x}
-                y={p.y - 15}
-                textAnchor="middle"
-                fontSize="10"
-                fontWeight="600"
-                fill={i === stages.length - 1 ? "#22c55e" : "#60a5fa"}
-              >
-                {convRate}% →
-              </text>
-            </g>
-          );
-        })}
+        {/* Conversion rate pills between stages */}
+        {convRates.map((cr, i) => (
+          <g key={i}>
+            <rect
+              x={cr.x - 26}
+              y={cr.y - 12}
+              width="52"
+              height="24"
+              rx="12"
+              fill="#111"
+              stroke="#333"
+              strokeWidth="1"
+            />
+            <text
+              x={cr.x}
+              y={cr.y + 1}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="11"
+              fontWeight="600"
+              fill={cr.rate >= 50 ? "#34d399" : cr.rate >= 20 ? "#fbbf24" : "#f87171"}
+            >
+              {cr.rate}% →
+            </text>
+          </g>
+        ))}
       </svg>
     </div>
   );
