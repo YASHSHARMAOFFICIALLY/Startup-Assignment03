@@ -33,38 +33,40 @@ const SEGMENT_FILLS = [
 function FunnelChart({ stages }: { stages: { label: string; value: number }[] }) {
   const max = Math.max(...stages.map((s) => s.value), 1);
   const w = 700;
-  const h = 260;
+  const h = 280;
   const padX = 10;
-  const midY = h / 2;
-  const maxHalf = 100;
-  const gap = 4;
-  const totalGaps = (stages.length - 1) * gap;
-  const segW = (w - padX * 2 - totalGaps) / (stages.length - 1);
+  const midY = 130;
+  const maxHalf = 95;
+  const gap = 3;
+  const segCount = stages.length;
+  const totalGaps = (segCount - 1) * gap;
+  const segW = (w - padX * 2 - totalGaps) / segCount;
 
-  const heights = stages.map((s) => Math.max((s.value / max) * maxHalf, 8));
+  const heights = stages.map((s) => Math.max((s.value / max) * maxHalf, 10));
 
-  // Build trapezoid segments between consecutive stages
-  const segments = [];
-  for (let i = 0; i < stages.length - 1; i++) {
-    const x1 = padX + i * (segW + gap);
-    const x2 = x1 + segW;
-    const h1 = heights[i];
-    const h2 = heights[i + 1];
+  // Each stage gets its own block; left edge = own height, right edge = next height (or min for last)
+  const blocks = stages.map((s, i) => {
+    const x = padX + i * (segW + gap);
+    const hL = heights[i];
+    const hR = i < stages.length - 1 ? heights[i + 1] : Math.max(heights[i] * 0.6, 10);
+    const cx = x + segW / 2;
 
-    // Trapezoid: top-left, top-right, bottom-right, bottom-left
     const path = [
-      `M${x1},${midY - h1}`,
-      `L${x2},${midY - h2}`,
-      `L${x2},${midY + h2}`,
-      `L${x1},${midY + h1}`,
+      `M${x},${midY - hL}`,
+      `L${x + segW},${midY - hR}`,
+      `L${x + segW},${midY + hR}`,
+      `L${x},${midY + hL}`,
       "Z",
     ].join(" ");
 
-    const convRate = pct(stages[i + 1].value, stages[i].value);
-    const cx = (x1 + x2) / 2;
+    return { path, x, cx, hL, hR, idx: i, value: s.value, label: s.label };
+  });
 
-    segments.push({ path, cx, convRate, idx: i });
-  }
+  // Conversion rates between stages
+  const convRates = stages.slice(1).map((s, i) => ({
+    rate: pct(s.value, stages[i].value),
+    x: blocks[i].x + segW + gap / 2,
+  }));
 
   return (
     <div className="relative w-full">
@@ -72,27 +74,55 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
         <defs>
           {SEGMENT_FILLS.map((c, i) => (
             <linearGradient key={i} id={`seg${i}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={c.top} stopOpacity="0.6" />
-              <stop offset="100%" stopColor={c.bot} stopOpacity="0.25" />
+              <stop offset="0%" stopColor={c.top} stopOpacity="0.55" />
+              <stop offset="100%" stopColor={c.bot} stopOpacity="0.2" />
             </linearGradient>
           ))}
         </defs>
 
-        {/* Trapezoid segments */}
-        {segments.map((seg) => (
-          <g key={seg.idx}>
+        {/* 5 trapezoid blocks */}
+        {blocks.map((b) => (
+          <g key={b.idx}>
             <path
-              d={seg.path}
-              fill={`url(#seg${seg.idx % SEGMENT_FILLS.length})`}
-              stroke={SEGMENT_FILLS[seg.idx % SEGMENT_FILLS.length].top}
+              d={b.path}
+              fill={`url(#seg${b.idx % SEGMENT_FILLS.length})`}
+              stroke={SEGMENT_FILLS[b.idx % SEGMENT_FILLS.length].top}
               strokeWidth="1"
-              strokeOpacity="0.3"
+              strokeOpacity="0.25"
             />
-            {/* Conversion pill on top */}
+            {/* Value inside */}
+            <text
+              x={b.cx}
+              y={midY + 5}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="14"
+              fontWeight="700"
+              fill="#fff"
+              opacity="0.9"
+            >
+              {b.value.toLocaleString()}
+            </text>
+            {/* Label below */}
+            <text
+              x={b.cx}
+              y={midY + maxHalf + 22}
+              textAnchor="middle"
+              fontSize="11"
+              fill="#888"
+            >
+              {b.label}
+            </text>
+          </g>
+        ))}
+
+        {/* Conversion pills between blocks */}
+        {convRates.map((cr, i) => (
+          <g key={i}>
             <rect
-              x={seg.cx - 24}
-              y={midY - heights[seg.idx] - 28}
-              width="48"
+              x={cr.x - 22}
+              y={midY - heights[i] - 30}
+              width="44"
               height="22"
               rx="11"
               fill="#111"
@@ -100,60 +130,18 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
               strokeWidth="0.5"
             />
             <text
-              x={seg.cx}
-              y={midY - heights[seg.idx] - 14}
+              x={cr.x}
+              y={midY - heights[i] - 16}
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize="10"
               fontWeight="600"
-              fill={seg.convRate >= 50 ? "#34d399" : seg.convRate >= 20 ? "#fbbf24" : "#f87171"}
+              fill={cr.rate >= 50 ? "#34d399" : cr.rate >= 20 ? "#fbbf24" : "#f87171"}
             >
-              {seg.convRate}% →
+              {cr.rate}% →
             </text>
           </g>
         ))}
-
-        {/* Stage labels at bottom */}
-        {stages.map((s, i) => {
-          const x = i === 0
-            ? padX
-            : i === stages.length - 1
-              ? padX + (stages.length - 2) * (segW + gap) + segW
-              : padX + (i - 0.5) * (segW + gap) + segW / 2;
-          return (
-            <text
-              key={s.label}
-              x={i === 0 ? padX + segW * 0.3 : i < stages.length - 1 ? padX + i * (segW + gap) - gap / 2 : padX + (stages.length - 2) * (segW + gap) + segW * 0.7}
-              y={midY + maxHalf + 24}
-              textAnchor="middle"
-              fontSize="11"
-              fill="#888"
-            >
-              {s.label}
-            </text>
-          );
-        })}
-
-        {/* Value labels inside segments */}
-        {stages.slice(0, -1).map((s, i) => {
-          const x1 = padX + i * (segW + gap);
-          const cx = x1 + segW / 2;
-          return (
-            <text
-              key={s.label}
-              x={cx}
-              y={midY + 4}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize="13"
-              fontWeight="700"
-              fill="#fff"
-              opacity="0.9"
-            >
-              {s.value.toLocaleString()}
-            </text>
-          );
-        })}
       </svg>
     </div>
   );
