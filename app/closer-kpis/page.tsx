@@ -1,9 +1,10 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 import Link from "next/link";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords, buildAliasMap, buildNameToRepIdMap } from "@/lib/api-utils";
 import { readSettings } from "@/lib/settings";
+import { getSessionUser } from "@/lib/session";
 import type { CloserRecord } from "@/lib/sheet-sync";
 import { fmtCurrency } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
@@ -98,12 +99,36 @@ export default async function CloserKpisPage({
 }: {
   searchParams: Promise<{ period?: string; offerId?: string }>;
 }) {
-  const params = await searchParams;
-  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
-  const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
-  const range = resolvePeriod(period, null, null, new Date());
-  const filtered = records.closer.filter((r) => inRange(r.date, range.from, range.to));
-  const stats = buildCloserStats(filtered, aliasMap);
+  let params: { period?: string; offerId?: string };
+  let stats: ReturnType<typeof buildCloserStats> = [];
+  let filtered: CloserRecord[] = [];
+  let nameToRepId = new Map<string, string>();
+
+  try {
+    params = await searchParams;
+    const [records, aliasMap, ntrId, settings, sessionUser] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings(), getSessionUser()]);
+    nameToRepId = ntrId;
+    const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
+    const range = resolvePeriod(period, null, null, new Date());
+    filtered = records.closer.filter((r) => inRange(r.date, range.from, range.to));
+    const allStats = buildCloserStats(filtered, aliasMap);
+
+    // Regular users only see their own data
+    if (sessionUser && sessionUser.role !== "manager") {
+      const userName = sessionUser.name.toLowerCase();
+      stats = allStats.filter((s) => s.name.toLowerCase() === userName);
+    } else {
+      stats = allStats;
+    }
+  } catch (e) {
+    console.error("[SalesIO] Closer KPIs failed:", e);
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
+        <PageHeader title="Closer KPIs" subtitle="Per-closer performance breakdown." />
+        <EmptyState title="Failed to load" description="Could not load closer data. Please try refreshing." />
+      </div>
+    );
+  }
 
   const totalCash = stats.reduce((s, r) => s + r.cash, 0);
   const totalRevenue = stats.reduce((s, r) => s + r.revenue, 0);

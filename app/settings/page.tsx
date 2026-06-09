@@ -3,15 +3,29 @@ export const dynamic = "force-dynamic";
 import { APP_CONFIG } from "@/lib/config";
 import { readOffers } from "@/lib/api-utils";
 import { readSettings } from "@/lib/settings";
+import { getSessionUser } from "@/lib/session";
+import { prisma } from "@/lib/db";
 import { Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { SettingsForm } from "./_components/settings-form";
+import { TeamManager } from "./_components/team-manager";
 
 export default async function SettingsPage() {
-  const [settings, offers] = await Promise.all([
+  const [settings, offers, sessionUser] = await Promise.all([
     readSettings(),
     readOffers().catch(() => []),
+    getSessionUser(),
   ]);
+
+  const isManager = sessionUser?.role === "manager";
+
+  // Fetch team members for managers
+  const teamUsers = isManager
+    ? await prisma.user.findMany({
+        select: { id: true, name: true, email: true, role: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      }).then((users) => users.map((u) => ({ ...u, createdAt: u.createdAt.toISOString() })))
+    : [];
 
   const offerCount = offers.length;
   const synced = offers
@@ -64,6 +78,9 @@ export default async function SettingsPage() {
         initialCommissionRate={settings.commissionRate}
         initialDefaultPeriod={settings.defaultPeriod}
       />
+
+      {/* Team Members (manager only) */}
+      {isManager && <TeamManager initialUsers={teamUsers} />}
 
       {/* Sync Status */}
       <Panel className="animate-stagger-4">

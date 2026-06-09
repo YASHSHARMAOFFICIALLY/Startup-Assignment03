@@ -12,6 +12,7 @@ model User {
   name               String
   email              String   @unique
   password           String
+  role               String   @default("user") // "manager" | "user"
   image              String?
   failedLoginAttempts Int      @default(0)
   lockedUntil        DateTime?
@@ -56,6 +57,8 @@ model Record {
 
   @@index([offerId])
   @@index([offerId, type])
+  @@index([date])
+  @@index([name])
 }
 
 model Rep {

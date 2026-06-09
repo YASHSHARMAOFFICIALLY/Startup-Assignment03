@@ -18,6 +18,7 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "SalesIO OS",
   description: "Sales intelligence operating system",
+  icons: { icon: "/favicon.svg" },
 };
 
 export default function RootLayout({

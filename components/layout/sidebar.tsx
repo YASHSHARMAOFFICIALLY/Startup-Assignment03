@@ -2,10 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { navItems } from "@/lib/nav-config";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role ?? "user";
+  const visibleItems = navItems.filter((i) => !i.managerOnly || role === "manager");
 
   return (
     <aside className="w-14 flex flex-col items-center py-5 border-r border-white/[0.04] bg-brand-bg z-20 shrink-0">
@@ -19,7 +23,7 @@ export function Sidebar() {
 
       {/* Nav icons */}
       <nav className="flex-1 flex flex-col items-center gap-1">
-        {navItems.map((item) => {
+        {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive =
             item.href === "/dashboard"

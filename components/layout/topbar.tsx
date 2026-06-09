@@ -164,10 +164,56 @@ function OfferSelector() {
   );
 }
 
+/** Deterministic color from a string (name/email). */
+function avatarColor(str: string): string {
+  const colors = [
+    "bg-brand-accent/20 text-brand-accent",
+    "bg-emerald-500/20 text-emerald-400",
+    "bg-violet-500/20 text-violet-400",
+    "bg-rose-500/20 text-rose-400",
+    "bg-sky-500/20 text-sky-400",
+    "bg-amber-500/20 text-amber-400",
+    "bg-fuchsia-500/20 text-fuchsia-400",
+    "bg-teal-500/20 text-teal-400",
+  ];
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+}
+
+function UserAvatar({ name, image, size = 28 }: { name: string; image?: string | null; size?: number }) {
+  if (image) {
+    return (
+      <Image
+        src={image}
+        alt={name}
+        width={size}
+        height={size}
+        className="rounded-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-200"
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`rounded-full flex items-center justify-center font-medium ${avatarColor(name)}`}
+      style={{ width: size, height: size, fontSize: size * 0.38 }}
+    >
+      {getInitials(name)}
+    </div>
+  );
+}
+
 export function Topbar() {
   const { data: session } = useSession();
   const userName = session?.user?.name ?? APP_CONFIG.userName;
-  const userImage = session?.user?.image ?? APP_CONFIG.userAvatar;
+  const userImage = session?.user?.image || null;
 
   return (
     <header className="flex justify-between items-center px-4 lg:px-8 py-3 lg:py-4 border-b border-white/[0.03] bg-transparent z-20">
@@ -185,13 +231,7 @@ export function Topbar() {
               aria-label="User menu"
               className="flex items-center space-x-3 group rounded-md focus-visible:ring-2 focus-visible:ring-brand-accent focus-visible:ring-offset-2 focus-visible:ring-offset-brand-bg focus-visible:outline-none"
             >
-              <Image
-                src={userImage}
-                alt={userName}
-                width={28}
-                height={28}
-                className="rounded-full object-cover opacity-70 group-hover:opacity-100 transition-opacity duration-200"
-              />
+              <UserAvatar name={userName} image={userImage} />
               <div className="hidden lg:flex flex-col text-left">
                 <span className="text-[11px] text-brand-textFaint leading-none">
                   {userName}

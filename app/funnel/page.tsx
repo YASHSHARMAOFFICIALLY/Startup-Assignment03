@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords } from "@/lib/api-utils";
@@ -16,14 +16,27 @@ export default async function FunnelPage({
 }: {
   searchParams: Promise<{ period?: string; offerId?: string }>;
 }) {
-  const params = await searchParams;
-  const [records, settings] = await Promise.all([
-    readAllRecords(params.offerId || undefined),
-    readSettings(),
-  ]);
-  const period =
-    (params.period as PeriodKey) ||
-    (settings.defaultPeriod as PeriodKey);
+  let records: Awaited<ReturnType<typeof readAllRecords>>;
+  let period: PeriodKey;
+
+  try {
+    const params = await searchParams;
+    const [rec, settings] = await Promise.all([
+      readAllRecords(params.offerId || undefined),
+      readSettings(),
+    ]);
+    records = rec;
+    period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
+  } catch (e) {
+    console.error("[SalesIO] Funnel failed:", e);
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
+        <PageHeader title="Unified Funnel" subtitle="Full setter → closer pipeline." />
+        <EmptyState title="Failed to load" description="Could not load funnel data. Please try refreshing." />
+      </div>
+    );
+  }
+
   const hasData =
     records.closer.length > 0 ||
     records.phone.length > 0 ||

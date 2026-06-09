@@ -39,16 +39,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
-
-type RepRow = {
-  id: string;
-  displayName: string;
-  aliases: string[];
-  roles: string[];
-  status: string;
-  targets: Record<string, number>;
-  createdAt: string;
-};
+import type { RepRow } from "@/lib/api-utils";
 
 type FormState = {
   displayName: string;

@@ -3,6 +3,8 @@ import { fileURLToPath } from "url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+const isDev = process.env.NODE_ENV !== "production";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   outputFileTracingRoot: __dirname,
@@ -11,6 +13,10 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "i.pravatar.cc",
+      },
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
       },
     ],
   },
@@ -28,11 +34,15 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline'",
+              isDev
+                ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+                : "script-src 'self' 'unsafe-inline'",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https://i.pravatar.cc https://lh3.googleusercontent.com",
               "font-src 'self'",
-              "connect-src 'self' https://docs.google.com",
+              isDev
+                ? "connect-src 'self' https://docs.google.com ws://localhost:3000"
+                : "connect-src 'self' https://docs.google.com",
               "frame-ancestors 'none'",
             ].join("; "),
           },

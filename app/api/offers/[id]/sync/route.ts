@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 
 import { fetchRecordsFromOffer } from "@/lib/sheet-sync";
@@ -55,6 +56,13 @@ export async function POST(
       resourceId: id,
       detail: `closer: ${records.closer.length}, phone: ${records.phone.length}, dm: ${records.dm.length}`,
     });
+
+    // Bust ISR cache after sync
+    revalidatePath("/dashboard");
+    revalidatePath("/closer-kpis");
+    revalidatePath("/setter-kpis");
+    revalidatePath("/leaderboard");
+    revalidatePath("/funnel");
 
     return NextResponse.json({
       offer: { ...offer, lastSynced: syncedAt },

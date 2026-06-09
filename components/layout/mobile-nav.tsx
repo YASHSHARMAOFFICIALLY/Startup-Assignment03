@@ -3,12 +3,16 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Menu, X } from "lucide-react";
 import { navItems } from "@/lib/nav-config";
 
 export function MobileMenuButton() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const role = (session?.user as { role?: string } | undefined)?.role ?? "user";
+  const visibleItems = navItems.filter((i) => !i.managerOnly || role === "manager");
 
   // Close on Escape key
   useEffect(() => {
@@ -77,7 +81,7 @@ export function MobileMenuButton() {
 
             {/* Nav items */}
             <div className="flex-1 px-4 space-y-1 overflow-y-auto">
-              {navItems.map((item) => {
+              {visibleItems.map((item) => {
                 const Icon = item.icon;
                 const isActive =
                   item.href === "/dashboard"

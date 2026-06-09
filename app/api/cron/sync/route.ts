@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { fetchRecordsFromOffer } from "@/lib/sheet-sync";
 import { writeRecords } from "@/lib/api-utils";
@@ -77,6 +78,16 @@ export async function GET(request: Request) {
       });
       results.push({ id: offer.id, name: offer.name, status: `failed — ${msg}` });
     }
+  }
+
+  // Bust ISR cache for all data pages after sync
+  const anySynced = results.some((r) => r.status === "synced");
+  if (anySynced) {
+    revalidatePath("/dashboard");
+    revalidatePath("/closer-kpis");
+    revalidatePath("/setter-kpis");
+    revalidatePath("/leaderboard");
+    revalidatePath("/funnel");
   }
 
   return NextResponse.json({

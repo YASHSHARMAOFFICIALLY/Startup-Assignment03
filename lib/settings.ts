@@ -18,11 +18,15 @@ export type AppSettings = {
 };
 
 export async function readSettings(): Promise<AppSettings> {
-  const row = await prisma.settings.upsert({
-    where: { id: "default" },
-    create: {},
-    update: {},
-  });
+  const row = await prisma.$transaction(
+    async (tx) =>
+      tx.settings.upsert({
+        where: { id: "default" },
+        create: {},
+        update: {},
+      }),
+    { isolationLevel: "Serializable" },
+  );
   return {
     commissionRate: row.commissionRate,
     defaultPeriod: row.defaultPeriod,
@@ -32,14 +36,18 @@ export async function readSettings(): Promise<AppSettings> {
 export async function updateSettings(
   data: z.infer<typeof updateSettingsSchema>,
 ): Promise<AppSettings> {
-  const row = await prisma.settings.upsert({
-    where: { id: "default" },
-    create: {
-      commissionRate: data.commissionRate ?? 0,
-      defaultPeriod: data.defaultPeriod ?? "last-month",
-    },
-    update: data,
-  });
+  const row = await prisma.$transaction(
+    async (tx) =>
+      tx.settings.upsert({
+        where: { id: "default" },
+        create: {
+          commissionRate: data.commissionRate ?? 0,
+          defaultPeriod: data.defaultPeriod ?? "last-month",
+        },
+        update: data,
+      }),
+    { isolationLevel: "Serializable" },
+  );
   return {
     commissionRate: row.commissionRate,
     defaultPeriod: row.defaultPeriod,

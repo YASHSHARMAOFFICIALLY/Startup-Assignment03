@@ -1,4 +1,4 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 import Link from "next/link";
 import { aggregate, priorRange } from "@/lib/sheet-sync";
@@ -199,39 +199,54 @@ export default async function LeaderboardPage({
 }: {
   searchParams: Promise<{ period?: string; closerSort?: string; setterSort?: string; offerId?: string }>;
 }) {
-  const params = await searchParams;
-  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
-  const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
-  const closerSort = (CLOSER_SORTS.find((s) => s.key === params.closerSort)?.key ?? "cash") as CloserSortKey;
-  const setterSort = (SETTER_SORTS.find((s) => s.key === params.setterSort)?.key ?? "callsSet") as SetterSortKey;
-  const hasData = records.closer.length > 0 || records.phone.length > 0 || records.dm.length > 0;
-
   let closers: CloserRep[] = [];
   let setters: SetterRep[] = [];
   let priorClosers: CloserRep[] = [];
   let priorSetters: SetterRep[] = [];
+  let nameToRepId = new Map<string, string>();
+  let rawParams: Record<string, string | undefined> = {};
+  let closerSort: CloserSortKey = "cash";
+  let setterSort: SetterSortKey = "callsSet";
+  let hasData = false;
 
-  if (hasData) {
-    const range = resolvePeriod(period, null, null, new Date());
-    const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate);
-    closers = sortClosers(data.closers, closerSort);
-    setters = sortSetters(data.setters, setterSort);
+  try {
+    const params = await searchParams;
+    const [records, aliasMap, ntrId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
+    nameToRepId = ntrId;
+    const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
+    closerSort = (CLOSER_SORTS.find((s) => s.key === params.closerSort)?.key ?? "cash") as CloserSortKey;
+    setterSort = (SETTER_SORTS.find((s) => s.key === params.setterSort)?.key ?? "callsSet") as SetterSortKey;
+    hasData = records.closer.length > 0 || records.phone.length > 0 || records.dm.length > 0;
 
-    // Prior period for rank-change
-    const prev = priorRange(range.from, range.to);
-    if (prev.from && prev.to) {
-      const prevData = aggregate(records, prev.from, prev.to, "prior", aliasMap);
-      priorClosers = sortClosers(prevData.closers, closerSort);
-      priorSetters = sortSetters(prevData.setters, setterSort);
+    if (hasData) {
+      const range = resolvePeriod(period, null, null, new Date());
+      const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate);
+      closers = sortClosers(data.closers, closerSort);
+      setters = sortSetters(data.setters, setterSort);
+
+      const prev = priorRange(range.from, range.to);
+      if (prev.from && prev.to) {
+        const prevData = aggregate(records, prev.from, prev.to, "prior", aliasMap);
+        priorClosers = sortClosers(prevData.closers, closerSort);
+        priorSetters = sortSetters(prevData.setters, setterSort);
+      }
     }
+
+    rawParams = { period: params.period, closerSort: params.closerSort, setterSort: params.setterSort };
+  } catch (e) {
+    console.error("[SalesIO] Leaderboard failed:", e);
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
+        <PageHeader title="Leaderboard" subtitle="Full rep rankings by performance." />
+        <EmptyState title="Failed to load" description="Could not load leaderboard data. Please try refreshing." />
+      </div>
+    );
   }
 
   const priorCloserMap = rankChangeMap(priorClosers);
   const priorSetterMap = rankChangeMap(priorSetters);
   const closerMostImproved = mostImproved(closers, priorCloserMap);
   const setterMostImproved = mostImproved(setters, priorSetterMap);
-
-  const rawParams: Record<string, string | undefined> = { period: params.period, closerSort: params.closerSort, setterSort: params.setterSort };
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">

@@ -28,7 +28,7 @@ const providers: Provider[] = [
       if (!credentials?.email || !credentials?.password) return null;
       const user = await verifyPassword(credentials.email, credentials.password);
       if (!user) return null;
-      return { id: user.id, name: user.name, email: user.email, image: user.image };
+      return { id: user.id, name: user.name, email: user.email, image: user.image, role: user.role };
     },
   }),
 ];
@@ -44,7 +44,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
 
 export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
+  session: { strategy: "jwt", maxAge: 24 * 60 * 60 },
   pages: { signIn: "/login" },
   providers,
   callbacks: {
@@ -58,17 +58,21 @@ export const authOptions: NextAuthOptions = {
       user.id = existing.id;
       user.name = existing.name;
       user.image = existing.image ?? user.image;
+      (user as { role?: string }).role = existing.role;
       return true;
     },
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = (user as { role?: string }).role ?? "user";
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
-        (session.user as { id?: string }).id = token.id as string;
+        const u = session.user as { id?: string; role?: string };
+        u.id = token.id as string;
+        u.role = (token.role as string) ?? "user";
       }
       return session;
     },

@@ -1,9 +1,10 @@
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 import Link from "next/link";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords, buildAliasMap, buildNameToRepIdMap } from "@/lib/api-utils";
 import { readSettings } from "@/lib/settings";
+import { getSessionUser } from "@/lib/session";
 import type { PhoneRecord, DmRecord } from "@/lib/sheet-sync";
 import { fmtCurrency } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
@@ -72,16 +73,48 @@ export default async function SetterKpisPage({
 }: {
   searchParams: Promise<{ period?: string; channel?: string; offerId?: string }>;
 }) {
-  const params = await searchParams;
-  const [records, aliasMap, nameToRepId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
-  const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
-  const channel = (CHANNELS.find((c) => c.key === params.channel)?.key ?? "all") as Channel;
-  const range = resolvePeriod(period, null, null, new Date());
-  const phone = records.phone.filter((r) => inRange(r.date, range.from, range.to));
-  const dm = records.dm.filter((r) => inRange(r.date, range.from, range.to));
-  const phoneStats = buildPhoneStats(phone, aliasMap);
-  const dmStats = buildDmStats(dm, aliasMap);
-  const hasData = phone.length > 0 || dm.length > 0;
+  let params: { period?: string; channel?: string; offerId?: string };
+  let phoneStats: ReturnType<typeof buildPhoneStats> = [];
+  let dmStats: ReturnType<typeof buildDmStats> = [];
+  let phone: PhoneRecord[] = [];
+  let dm: DmRecord[] = [];
+  let nameToRepId = new Map<string, string>();
+  let channel: Channel = "all";
+  let hasData = false;
+
+  try {
+    params = await searchParams;
+    const [records, aliasMap, ntrId, settings, sessionUser] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings(), getSessionUser()]);
+    nameToRepId = ntrId;
+    const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
+    channel = (CHANNELS.find((c) => c.key === params.channel)?.key ?? "all") as Channel;
+    const range = resolvePeriod(period, null, null, new Date());
+    phone = records.phone.filter((r) => inRange(r.date, range.from, range.to));
+    dm = records.dm.filter((r) => inRange(r.date, range.from, range.to));
+    const allPhoneStats = buildPhoneStats(phone, aliasMap);
+    const allDmStats = buildDmStats(dm, aliasMap);
+
+    // Regular users only see their own data
+    if (sessionUser && sessionUser.role !== "manager") {
+      const userName = sessionUser.name.toLowerCase();
+      phoneStats = allPhoneStats.filter((s) => s.name.toLowerCase() === userName);
+      dmStats = allDmStats.filter((s) => s.name.toLowerCase() === userName);
+    } else {
+      phoneStats = allPhoneStats;
+      dmStats = allDmStats;
+    }
+    hasData = phone.length > 0 || dm.length > 0;
+  } catch (e) {
+    console.error("[SalesIO] Setter KPIs failed:", e);
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
+        <PageHeader title="Setter KPIs" subtitle="Phone and DM setter performance breakdown." />
+        <EmptyState title="Failed to load" description="Could not load setter data. Please try refreshing." />
+      </div>
+    );
+  }
+
+  params = params!;
 
   /* Phone summary aggregates */
   const phoneTotalBooked = phoneStats.reduce((s, r) => s + r.booked, 0);
