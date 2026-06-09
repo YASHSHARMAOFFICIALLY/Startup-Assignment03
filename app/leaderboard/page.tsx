@@ -407,6 +407,11 @@ export default async function LeaderboardPage({
   const closerMostImproved = mostImproved(closers, priorCloserMap);
   const setterMostImproved = mostImproved(setters, priorSetterMap);
 
+  const totalDials = phoneStats.reduce((s, r) => s + r.dials, 0);
+  const totalBooked = phoneStats.reduce((s, r) => s + r.booked, 0);
+  const totalCash = closers.reduce((s, r) => s + r.cashCollected, 0);
+  const totalDeals = closers.reduce((s, r) => s + r.dealsClosed, 0);
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
       <PageHeader
@@ -414,6 +419,28 @@ export default async function LeaderboardPage({
         subtitle="Full rep rankings by performance."
         badge={!hasData ? <span className="text-brand-accent text-xs">(no data — sync an offer first)</span> : undefined}
       />
+
+      {/* Top KPIs */}
+      {hasData && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-stagger-1">
+          <div>
+            <div className="text-xs text-brand-textFaint mb-1">Cash Collected</div>
+            <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalCash)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-brand-textFaint mb-1">Deals Closed</div>
+            <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{totalDeals}</div>
+          </div>
+          <div>
+            <div className="text-xs text-brand-textFaint mb-1">Total Dials</div>
+            <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{totalDials.toLocaleString()}</div>
+          </div>
+          <div>
+            <div className="text-xs text-brand-textFaint mb-1">Calls Booked</div>
+            <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{totalBooked}</div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Closers */}
