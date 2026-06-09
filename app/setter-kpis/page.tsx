@@ -168,7 +168,7 @@ export default async function SetterKpisPage({
 
       {/* Phone Setters */}
       {(channel === "all" || channel === "phone") && <Panel className="animate-stagger-2">
-        <h2 className="text-[10px] font-normal text-brand-textFaint uppercase tracking-[0.1em] mb-4">
+        <h2 className="text-[13px] font-medium text-brand-textSecondary mb-4">
           Phone Setters
           <span className="ml-2 text-xs text-brand-textFaint font-normal">({phoneStats.length} reps)</span>
         </h2>
@@ -179,20 +179,20 @@ export default async function SetterKpisPage({
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 animate-stagger-2 mb-5">
               <div>
-                <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Total Booked</div>
-                <div className="text-lg font-light text-brand-textPrimary tabular-nums">{phoneTotalBooked}</div>
+                <div className="text-xs text-brand-textFaint mb-1">Total Booked</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneTotalBooked}</div>
               </div>
               <div>
-                <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Shows</div>
-                <div className="text-lg font-light text-brand-textPrimary tabular-nums">{phoneTotalShows}</div>
+                <div className="text-xs text-brand-textFaint mb-1">Shows</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneTotalShows}</div>
               </div>
               <div>
-                <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Avg Set%</div>
-                <div className="text-lg font-light text-brand-textPrimary tabular-nums">{phoneAvgSet}%</div>
+                <div className="text-xs text-brand-textFaint mb-1">Avg Set%</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneAvgSet}%</div>
               </div>
               <div>
-                <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Avg Show%</div>
-                <div className="text-lg font-light text-brand-textPrimary tabular-nums">{phoneAvgShow}%</div>
+                <div className="text-xs text-brand-textFaint mb-1">Avg Show%</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneAvgShow}%</div>
               </div>
             </div>
 
@@ -255,7 +255,7 @@ export default async function SetterKpisPage({
 
       {/* DM Setters */}
       {(channel === "all" || channel === "dm") && <Panel className="animate-stagger-3">
-        <h2 className="text-[10px] font-normal text-brand-textFaint uppercase tracking-[0.1em] mb-4">
+        <h2 className="text-[13px] font-medium text-brand-textSecondary mb-4">
           DM Setters
           <span className="ml-2 text-xs text-brand-textFaint font-normal">({dmStats.length} reps)</span>
         </h2>
@@ -266,20 +266,20 @@ export default async function SetterKpisPage({
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 animate-stagger-2 mb-5">
               <div>
-                <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Total Booked</div>
-                <div className="text-lg font-light text-brand-textPrimary tabular-nums">{dmTotalBooked}</div>
+                <div className="text-xs text-brand-textFaint mb-1">Total Booked</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmTotalBooked}</div>
               </div>
               <div>
-                <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Live Calls</div>
-                <div className="text-lg font-light text-brand-textPrimary tabular-nums">{dmTotalLive}</div>
+                <div className="text-xs text-brand-textFaint mb-1">Live Calls</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmTotalLive}</div>
               </div>
               <div>
-                <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Avg Book%</div>
-                <div className="text-lg font-light text-brand-textPrimary tabular-nums">{dmAvgBook}%</div>
+                <div className="text-xs text-brand-textFaint mb-1">Avg Book%</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmAvgBook}%</div>
               </div>
               <div>
-                <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Avg Show%</div>
-                <div className="text-lg font-light text-brand-textPrimary tabular-nums">{dmAvgShow}%</div>
+                <div className="text-xs text-brand-textFaint mb-1">Avg Show%</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmAvgShow}%</div>
               </div>
             </div>
 

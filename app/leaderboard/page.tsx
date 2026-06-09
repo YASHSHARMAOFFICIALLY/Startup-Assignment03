@@ -161,7 +161,7 @@ function PodiumHero({
           <div className="text-sm font-normal text-brand-textPrimary truncate">{first.name}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className={`text-lg font-light ${medalColors[0].text}`}>{formatValue(first)}</div>
+          <div className={`text-lg font-semibold ${medalColors[0].text}`}>{formatValue(first)}</div>
           <RankChange current={first} priorMap={priorMap} />
         </div>
       </div>
@@ -182,7 +182,7 @@ function PodiumHero({
               <div className="text-[13px] font-normal text-brand-textSecondary truncate">{rep.name}</div>
             </div>
             <div className="text-right shrink-0">
-              <div className={`text-[14px] font-light ${medalColors[mi].text}`}>{formatValue(rep)}</div>
+              <div className={`text-[14px] font-semibold ${medalColors[mi].text}`}>{formatValue(rep)}</div>
               <RankChange current={rep} priorMap={priorMap} />
             </div>
           </div>
@@ -259,7 +259,7 @@ export default async function LeaderboardPage({
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         {/* Closers */}
         <Panel className="animate-stagger-2">
-          <h2 className="text-[10px] font-normal text-brand-textFaint uppercase tracking-[0.1em] mb-4">
+          <h2 className="text-[13px] font-medium text-brand-textSecondary mb-4">
             Closers
             <span className="ml-2 text-xs text-brand-textFaint font-normal">({closers.length} reps)</span>
           </h2>
@@ -331,7 +331,7 @@ export default async function LeaderboardPage({
 
         {/* Setters */}
         <Panel className="animate-stagger-3">
-          <h2 className="text-[10px] font-normal text-brand-textFaint uppercase tracking-[0.1em] mb-4">
+          <h2 className="text-[13px] font-medium text-brand-textSecondary mb-4">
             Setters
             <span className="ml-2 text-xs text-brand-textFaint font-normal">({setters.length} reps)</span>
           </h2>
