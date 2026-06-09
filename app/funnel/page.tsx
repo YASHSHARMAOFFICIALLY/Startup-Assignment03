@@ -246,6 +246,10 @@ export default async function FunnelPage({
     { label: "Won", value: won },
   ];
 
+  const totalRevenue = closer.reduce((s, r) => s + r.revenue, 0);
+  const totalCash = closer.reduce((s, r) => s + r.cash, 0);
+  const cashToCollect = totalRevenue - totalCash;
+
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
       <PageHeader
@@ -253,8 +257,36 @@ export default async function FunnelPage({
         subtitle="Full pipeline visualization."
       />
 
+      {/* Top KPI cards — matches client layout */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-stagger-1">
+        <Panel className="!py-4">
+          <div className="text-xs text-brand-textFaint mb-1">Total revenue</div>
+          <div className="text-xl font-semibold text-brand-textPrimary tabular-nums">${totalRevenue.toLocaleString()}</div>
+        </Panel>
+        <Panel className="!py-4">
+          <div className="text-xs text-brand-textFaint mb-1">Cash collected</div>
+          <div className="text-xl font-semibold text-brand-textPrimary tabular-nums">${totalCash.toLocaleString()}</div>
+        </Panel>
+        <Panel className="!py-4">
+          <div className="text-xs text-brand-textFaint mb-1">Cash to be collected</div>
+          <div className="text-xl font-semibold text-brand-textPrimary tabular-nums">${cashToCollect.toLocaleString()}</div>
+        </Panel>
+        <Panel className="!py-4">
+          <div className="text-xs text-brand-textFaint mb-1">Compared to prev month</div>
+          <div className="text-xl font-semibold text-brand-textPrimary tabular-nums">
+            {pct(won, newLeads)}%
+          </div>
+        </Panel>
+      </div>
+
+      {/* Funnel label */}
+      <div className="flex items-center gap-2 text-sm text-brand-textMuted">
+        <span>↓</span>
+        <span className="font-medium">Default Funnel</span>
+      </div>
+
       {/* Stage cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 animate-stagger-1">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 animate-stagger-2">
         <StageCard icon="✨" label="New" value={newLeads} colorIdx={0} />
         <StageCard icon="📞" label="In contact" value={inContact} colorIdx={1} />
         <StageCard icon="🟢" label="Qualified" value={qualified} colorIdx={2} />
@@ -263,35 +295,35 @@ export default async function FunnelPage({
       </div>
 
       {/* Funnel chart */}
-      <Panel className="animate-stagger-2">
+      <Panel className="animate-stagger-3">
         <FunnelChart stages={stages} />
       </Panel>
 
       {/* Bottom counters */}
-      <div className="flex flex-wrap gap-6 px-1 animate-stagger-3">
+      <div className="flex flex-wrap gap-6 px-1 animate-stagger-4">
         <BottomStat dot="bg-red-400" label="No shows" value={noShows} />
         <BottomStat dot="bg-emerald-400" label="Deposits" value={deposits} />
         <BottomStat dot="bg-amber-400" label="Cancellations" value={cancellations} />
       </div>
 
-      {/* Revenue summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-stagger-4">
+      {/* Payments & Collections */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-stagger-5">
         <Panel>
-          <div className="text-xs text-brand-textFaint mb-2">Total Revenue</div>
-          <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">
-            ${closer.reduce((s, r) => s + r.revenue, 0).toLocaleString()}
-          </div>
+          <div className="text-xs text-brand-textFaint mb-3">Upcoming Payments</div>
+          <div className="text-xs text-brand-textFaint mb-1">Total Pending</div>
+          <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">${cashToCollect.toLocaleString()}</div>
         </Panel>
         <Panel>
-          <div className="text-xs text-brand-textFaint mb-2">Cash Collected</div>
-          <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">
-            ${closer.reduce((s, r) => s + r.cash, 0).toLocaleString()}
-          </div>
-        </Panel>
-        <Panel>
-          <div className="text-xs text-brand-textFaint mb-2">Commission</div>
-          <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">
-            $0
+          <div className="text-xs text-brand-textFaint mb-3">Recent Collections</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Cash Collected</div>
+              <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">${totalCash.toLocaleString()}</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Commission</div>
+              <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">$0</div>
+            </div>
           </div>
         </Panel>
       </div>
