@@ -1,67 +1,90 @@
 "use client";
 
-import { TrendingUp, TrendingDown } from "lucide-react";
+import {
+  DollarSign,
+  Wallet,
+  Target,
+  Percent,
+  ArrowUp,
+  ArrowDown,
+  type LucideIcon,
+} from "lucide-react";
 
-import { AnimatedNumber } from "@/components/dashboard/animated-number";
+import { AnimatedNumber, type NumberFormat } from "@/components/dashboard/animated-number";
+import { Sparkline } from "@/components/dashboard/sparkline";
 import type { DashboardData } from "@/lib/types";
 
-function DeltaBadge({ delta }: { delta: number }) {
-  if (delta === 0) return <span className="text-[11px] text-brand-textFaint tabular-nums">0%</span>;
-  const isPositive = delta > 0;
-  const Icon = isPositive ? TrendingUp : TrendingDown;
+const STAGGER_CLASSES = [
+  "animate-stagger-1",
+  "animate-stagger-2",
+  "animate-stagger-3",
+  "animate-stagger-4",
+] as const;
+
+function DeltaBadge({ value }: { value: number }) {
+  const negative = value < 0;
+  const Icon = negative ? ArrowDown : ArrowUp;
+  const color = negative ? "text-brand-negative" : "text-brand-positive";
   return (
-    <span className={`inline-flex items-center gap-1 text-[11px] font-medium tabular-nums ${isPositive ? "text-brand-positive" : "text-brand-negative"}`}>
-      <Icon size={12} />
-      {isPositive ? "+" : ""}{delta}%
-    </span>
+    <div className="flex items-center text-[11px] font-medium">
+      <Icon size={12} className={`mr-1 ${color}`} />
+      <span className={color}>{`${value}%`}</span>
+      <span className="ml-1 text-brand-textFaint">vs prior period</span>
+    </div>
+  );
+}
+
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  format,
+  delta,
+  trend,
+  index,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  format?: NumberFormat;
+  delta: number;
+  trend: number[];
+  index: number;
+}) {
+  return (
+    <div className={`bg-brand-bg/90 backdrop-blur-md rounded-xl relative overflow-hidden group hover:bg-brand-surface/50 transition-colors duration-500 ${STAGGER_CLASSES[index] ?? ""} gradient-border-card flex flex-col`}>
+      <div className="p-5 pb-2 relative z-10">
+        <div className="flex items-center space-x-2 mb-3">
+          <div className="flex items-center justify-center rounded-lg bg-brand-iconBg p-2">
+            <Icon
+              size={18}
+              className="text-brand-colHeader group-hover:text-brand-textPrimary transition-colors"
+            />
+          </div>
+          <span className="text-xs font-medium text-brand-textMuted group-hover:text-brand-textSecondary transition-colors">
+            {label}
+          </span>
+        </div>
+        <div className="text-[26px] font-semibold text-brand-textPrimary tracking-tight mb-2 tabular-nums">
+          <AnimatedNumber value={value} format={format} delay={200 + index * 100} />
+        </div>
+        <DeltaBadge value={delta} />
+      </div>
+      <div className="mt-auto h-12 w-full opacity-60">
+        <Sparkline data={trend} />
+      </div>
+    </div>
   );
 }
 
 export function MetricCards({ data }: { data: DashboardData }) {
-  const { closerKPIs, deltas } = data;
-
+  const { closerKPIs, deltas, trends } = data;
   return (
-    <div className="animate-stagger-1">
-      {/* Hero metric */}
-      <div className="mb-2">
-        <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.12em] mb-1.5">
-          Total Revenue
-        </div>
-        <div className="flex items-baseline gap-3">
-          <div className="text-[42px] font-light text-brand-textPrimary tracking-tight leading-none tabular-nums">
-            <AnimatedNumber value={closerKPIs.totalRevenue} format="currency" delay={100} />
-          </div>
-          <DeltaBadge delta={deltas.totalRevenue} />
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="h-px bg-white/[0.04] my-5" />
-
-      {/* Supporting metrics */}
-      <div className="grid grid-cols-3 gap-6">
-        <div>
-          <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Cash</div>
-          <div className="text-lg font-normal text-brand-textSecondary tabular-nums">
-            <AnimatedNumber value={closerKPIs.cashCollected} format="currency" delay={200} />
-          </div>
-          <DeltaBadge delta={deltas.cashCollected} />
-        </div>
-        <div>
-          <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Deals</div>
-          <div className="text-lg font-normal text-brand-textSecondary tabular-nums">
-            <AnimatedNumber value={closerKPIs.dealsClosed} delay={280} />
-          </div>
-          <DeltaBadge delta={deltas.dealsClosed} />
-        </div>
-        <div>
-          <div className="text-[10px] text-brand-textFaint uppercase tracking-[0.1em] mb-1">Close Rate</div>
-          <div className="text-lg font-normal text-brand-textSecondary tabular-nums">
-            <AnimatedNumber value={closerKPIs.closeRate} format="percent" delay={360} />
-          </div>
-          <DeltaBadge delta={deltas.closeRate} />
-        </div>
-      </div>
-    </div>
+    <>
+      <MetricCard icon={DollarSign} label="Total Revenue" value={closerKPIs.totalRevenue} format="currency" delta={deltas.totalRevenue} trend={trends.totalRevenue} index={0} />
+      <MetricCard icon={Wallet} label="Cash Collected" value={closerKPIs.cashCollected} format="currency" delta={deltas.cashCollected} trend={trends.cashCollected} index={1} />
+      <MetricCard icon={Target} label="Deals Closed" value={closerKPIs.dealsClosed} delta={deltas.dealsClosed} trend={trends.dealsClosed} index={2} />
+      <MetricCard icon={Percent} label="Close Rate" value={closerKPIs.closeRate} format="percent" delta={deltas.closeRate} trend={trends.closeRate} index={3} />
+    </>
   );
 }
