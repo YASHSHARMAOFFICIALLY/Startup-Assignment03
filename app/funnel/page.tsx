@@ -1,4 +1,4 @@
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords } from "@/lib/api-utils";
