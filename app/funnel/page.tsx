@@ -62,7 +62,8 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
     return { path, x, cx, hL, hR, idx: i, value: s.value, label: s.label };
   });
 
-  // Conversion rates between stages
+  // Conversion rates between stages — centered between blocks, consistent Y
+  const pillY = midY - maxHalf - 26;
   const convRates = stages.slice(1).map((s, i) => ({
     rate: pct(s.value, stages[i].value),
     x: blocks[i].x + segW + gap / 2,
@@ -116,12 +117,12 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
           </g>
         ))}
 
-        {/* Conversion pills between blocks */}
+        {/* Conversion pills between blocks — same row, evenly spaced */}
         {convRates.map((cr, i) => (
           <g key={i}>
             <rect
               x={cr.x - 22}
-              y={midY - heights[i] - 30}
+              y={pillY}
               width="44"
               height="22"
               rx="11"
@@ -131,7 +132,7 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
             />
             <text
               x={cr.x}
-              y={midY - heights[i] - 16}
+              y={pillY + 14}
               textAnchor="middle"
               dominantBaseline="middle"
               fontSize="10"
