@@ -6,6 +6,7 @@ import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords, buildAliasMap, buildNameToRepIdMap } from "@/lib/api-utils";
 import { readSettings } from "@/lib/settings";
 import type { CloserRep, SetterRep } from "@/lib/types";
+import type { PhoneRecord } from "@/lib/sheet-sync";
 import { fmtCurrency, fmtCurrencyOrDash, fmtPercentOrDash, rankBadgeClass } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
 import { Panel } from "@/components/ui/panel";
@@ -78,6 +79,156 @@ function mostImproved(current: { name: string; rank: number }[], priorMap: Map<s
     if (diff > bestDiff) { bestDiff = diff; best = r.name; }
   }
   return bestDiff > 0 ? best : null;
+}
+
+/* ----------------------------- Setter phone stats ------------------------- */
+
+type SetterPhoneStats = {
+  name: string;
+  dials: number;
+  hours: number;
+  dialsPerHour: number;
+  booked: number;
+  qConvos: number;
+  setRate: number;
+};
+
+function buildSetterPhoneStats(
+  phone: PhoneRecord[],
+  aliasMap: Map<string, string>,
+): SetterPhoneStats[] {
+  const byRep = new Map<string, { dials: number; hours: number; booked: number; qConvos: number }>();
+  for (const r of phone) {
+    if (!r.name) continue;
+    const name = aliasMap.get(r.name) ?? r.name;
+    const cur = byRep.get(name) ?? { dials: 0, hours: 0, booked: 0, qConvos: 0 };
+    cur.dials += r.dials;
+    cur.hours += r.hoursWorked;
+    cur.booked += r.booked;
+    cur.qConvos += r.qConvos;
+    byRep.set(name, cur);
+  }
+  return Array.from(byRep.entries())
+    .map(([name, v]) => ({
+      name,
+      dials: v.dials,
+      hours: v.hours,
+      dialsPerHour: v.hours > 0 ? Math.round((v.dials / v.hours) * 10) / 10 : 0,
+      booked: v.booked,
+      qConvos: v.qConvos,
+      setRate: v.qConvos > 0 ? Math.round((v.booked / v.qConvos) * 100) : 0,
+    }));
+}
+
+/* ----------------------------- Setter card leaderboard --------------------- */
+
+const MEDALS = ["🥇", "🥈", "🥉"];
+const BAR_COLORS = ["bg-amber-500", "bg-neutral-400", "bg-lime-500"];
+
+function SetterRankCard({
+  rank,
+  name,
+  value,
+  secondary,
+  maxValue,
+}: {
+  rank: number;
+  name: string;
+  value: number;
+  secondary: string;
+  maxValue: number;
+}) {
+  const isFirst = rank === 1;
+  const barWidth = maxValue > 0 ? Math.max((value / maxValue) * 100, 8) : 0;
+  const barColor = BAR_COLORS[rank - 1] ?? "bg-neutral-500";
+
+  return (
+    <div
+      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        isFirst
+          ? "bg-amber-500/10 border border-amber-500/30"
+          : "bg-white/[0.03] border border-white/[0.04]"
+      }`}
+    >
+      <span className="text-lg shrink-0">{MEDALS[rank - 1] ?? `${rank}`}</span>
+      <span className="text-sm font-medium text-brand-textPrimary min-w-[80px]">{name}</span>
+      <div className="flex-1 mx-2">
+        <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+          <div
+            className={`h-full rounded-full ${barColor}`}
+            style={{ width: `${barWidth}%` }}
+          />
+        </div>
+      </div>
+      <span className="text-sm font-semibold text-brand-textPrimary tabular-nums shrink-0">
+        {value.toLocaleString()}
+      </span>
+      <span className="text-xs text-brand-textFaint shrink-0 w-[70px] text-right">
+        {secondary}
+      </span>
+    </div>
+  );
+}
+
+function SetterCardLeaderboard({
+  phoneStats,
+  periodLabel,
+}: {
+  phoneStats: SetterPhoneStats[];
+  periodLabel: string;
+}) {
+  const byDials = [...phoneStats].sort((a, b) => b.dials - a.dials).slice(0, 5);
+  const byBooked = [...phoneStats].sort((a, b) => b.booked - a.booked).slice(0, 5);
+  const maxDials = byDials[0]?.dials ?? 0;
+  const maxBooked = byBooked[0]?.booked ?? 0;
+
+  return (
+    <div className="space-y-8">
+      <div className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">
+        Setter Leaderboard — {periodLabel}
+      </div>
+
+      {/* Dials section */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="text-sm">🏆</span>
+          <span className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">Dials</span>
+        </div>
+        <div className="space-y-1.5">
+          {byDials.map((rep, i) => (
+            <SetterRankCard
+              key={rep.name}
+              rank={i + 1}
+              name={rep.name}
+              value={rep.dials}
+              secondary={`${rep.dialsPerHour} / hr`}
+              maxValue={maxDials}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Calls Booked section */}
+      <div>
+        <div className="flex items-center gap-1.5 mb-3">
+          <span className="text-sm">📅</span>
+          <span className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">Calls Booked</span>
+        </div>
+        <div className="space-y-1.5">
+          {byBooked.map((rep, i) => (
+            <SetterRankCard
+              key={rep.name}
+              rank={i + 1}
+              name={rep.name}
+              value={rep.booked}
+              secondary={`${rep.setRate}% set rate`}
+              maxValue={maxBooked}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ----------------------------- Metric toggle ------------------------------ */
@@ -203,6 +354,8 @@ export default async function LeaderboardPage({
   let setters: SetterRep[] = [];
   let priorClosers: CloserRep[] = [];
   let priorSetters: SetterRep[] = [];
+  let phoneStats: SetterPhoneStats[] = [];
+  let periodLabel = "Month to Date";
   let nameToRepId = new Map<string, string>();
   let rawParams: Record<string, string | undefined> = {};
   let closerSort: CloserSortKey = "cash";
@@ -220,9 +373,15 @@ export default async function LeaderboardPage({
 
     if (hasData) {
       const range = resolvePeriod(period, null, null, new Date());
+      periodLabel = range.label;
       const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate);
       closers = sortClosers(data.closers, closerSort);
       setters = sortSetters(data.setters, setterSort);
+
+      // Build phone stats for setter card leaderboard
+      const inRange = (d: string) => (range.from === null || d >= range.from) && (range.to === null || d <= range.to);
+      const filteredPhone = records.phone.filter((r) => inRange(r.date));
+      phoneStats = buildSetterPhoneStats(filteredPhone, aliasMap);
 
       const prev = priorRange(range.from, range.to);
       if (prev.from && prev.to) {
@@ -329,74 +488,12 @@ export default async function LeaderboardPage({
           )}
         </Panel>
 
-        {/* Setters */}
+        {/* Setters — Card Leaderboard */}
         <Panel className="animate-stagger-3">
-          <h2 className="text-[13px] font-medium text-brand-textSecondary mb-4">
-            Setters
-            <span className="ml-2 text-xs text-brand-textFaint font-normal">({setters.length} reps)</span>
-          </h2>
-
-          {setters.length === 0 ? (
+          {phoneStats.length === 0 ? (
             <EmptyState title="No data" description="No setter data for this period." />
           ) : (
-            <>
-              <PodiumHero
-                reps={setters}
-                priorMap={priorSetterMap}
-                formatValue={(r) => {
-                  const s = r as SetterRep;
-                  return setterSort === "revenue" ? fmtCurrency(s.revenueGenerated) : String(s.callsSet);
-                }}
-              />
-
-              {setterMostImproved && (
-                <div className="mb-4 px-3 py-2 rounded-lg bg-brand-positive/5 border border-brand-positive/10 text-xs">
-                  <span className="text-brand-positive font-medium">Most Improved:</span>{" "}
-                  <span className="text-brand-textSecondary">{setterMostImproved}</span>
-                </div>
-              )}
-
-              <MetricToggle options={SETTER_SORTS} active={setterSort} paramName="setterSort" searchParams={rawParams} />
-
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr>
-                      <th scope="col" className={th}>#</th>
-                      <th scope="col" className={th}>Rep</th>
-                      <th scope="col" className={`${th} text-center`}>Calls Set</th>
-                      <th scope="col" className={`${th} text-right`}>Revenue Gen.</th>
-                      <th scope="col" className={`${th} text-center`}>Trend</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {setters.map((rep) => (
-                      <tr key={rep.id} className={trHover}>
-                        <td className={td}>
-                          {rep.rank <= 3 ? (
-                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${rankBadgeClass(rep.rank)}`}>
-                              {rep.rank}
-                            </div>
-                          ) : (
-                            <span className="text-brand-textFaint ml-1">{rep.rank}</span>
-                          )}
-                        </td>
-                        <td className={`${td} font-medium text-brand-textSecondary`}>
-                          {nameToRepId.get(rep.name) ? (
-                            <Link href={`/rep-management/${nameToRepId.get(rep.name)}`} className="hover:text-brand-accent transition-colors">{rep.name}</Link>
-                          ) : rep.name}
-                        </td>
-                        <td className={`${tdNum} text-center text-brand-textPrimary`}>{rep.callsSet}</td>
-                        <td className={`${tdNum} text-right text-brand-textPrimary`}>{fmtCurrency(rep.revenueGenerated)}</td>
-                        <td className={`${td} text-center`}>
-                          <RankChange current={rep} priorMap={priorSetterMap} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+            <SetterCardLeaderboard phoneStats={phoneStats} periodLabel={periodLabel} />
           )}
         </Panel>
       </div>
