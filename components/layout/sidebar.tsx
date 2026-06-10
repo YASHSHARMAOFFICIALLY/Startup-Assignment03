@@ -60,7 +60,7 @@ export function Sidebar() {
   const visibleItems = navItems.filter((i) => !i.managerOnly || role === "manager");
 
   return (
-    <aside className="w-[260px] flex flex-col border-r border-brand-border/40 bg-brand-bg z-20 shrink-0">
+    <aside className="w-[260px] h-full flex flex-col border-r border-brand-border/40 bg-brand-bg z-20 shrink-0">
       <div className="p-6 pb-8">
         <div className="text-xl font-medium tracking-tight flex items-center cursor-default">
           <span className="font-semibold text-brand-textPrimary">Sales.io</span>

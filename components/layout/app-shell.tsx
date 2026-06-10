@@ -16,7 +16,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-[#030303] text-brand-textPrimary font-sans overflow-hidden selection:bg-brand-accent selection:text-black">
-      <div className="hidden lg:block">
+      <div className="hidden lg:block h-full">
         <Sidebar />
       </div>
 

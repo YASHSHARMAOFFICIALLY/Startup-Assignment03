@@ -135,9 +135,9 @@ export default async function DashboardPage({
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:divide-x divide-brand-border/40">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 divide-y lg:divide-y-0 lg:divide-x divide-brand-border/60">
           <div className="lg:pr-4">
-            <h3 className="text-[13px] font-medium text-brand-textSecondary mb-4">Top Closers</h3>
+            <h3 className="text-sm font-semibold text-brand-textPrimary text-center mb-4">Top Closers</h3>
             <table className="w-full text-[13px]">
               <thead>
                 <tr>
@@ -170,8 +170,8 @@ export default async function DashboardPage({
             </table>
           </div>
 
-          <div className="lg:pl-4">
-            <h3 className="text-[13px] font-medium text-brand-textSecondary mb-4">Top Setters</h3>
+          <div className="pt-6 lg:pt-0 lg:pl-4">
+            <h3 className="text-sm font-semibold text-brand-textPrimary text-center mb-4">Top Setters</h3>
             <table className="w-full text-[13px]">
               <thead>
                 <tr>
