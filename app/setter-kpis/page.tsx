@@ -7,7 +7,7 @@ import { readSettings } from "@/lib/settings";
 import { getSessionUser } from "@/lib/session";
 import type { PhoneRecord, DmRecord } from "@/lib/sheet-sync";
 import { fmtCurrency } from "@/lib/formatters";
-import { th, td, tdNum, trHover } from "@/lib/table-styles";
+import { td, tdNum, trHover } from "@/lib/table-styles";
 import { Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -132,6 +132,8 @@ export default async function SetterKpisPage({
   const { field: dField, dir: dDir } = parseSort(dSortRaw, DM_SORT_FIELDS, "-booked");
   const sortedPhone = sortRows(phoneStats, pField, pDir);
   const sortedDm = sortRows(dmStats, dField, dDir);
+  const pCurrentSort = `${pDir === -1 ? "-" : ""}${pField}`;
+  const dCurrentSort = `${dDir === -1 ? "-" : ""}${dField}`;
 
   /* Shared query object for SortableTh (preserves all params except sort) */
   const baseQuery: Record<string, string> = {};
@@ -164,6 +166,7 @@ export default async function SetterKpisPage({
   const dmTotalBooked = dmStats.reduce((s, r) => s + r.booked, 0);
   const dmTotalLive = dmStats.reduce((s, r) => s + r.liveCalls, 0);
   const dmTotalConvos = dmStats.reduce((s, r) => s + r.convos, 0);
+  const dmTotalSwipeUps = dmStats.reduce((s, r) => s + r.swipeUps, 0);
   const dmBookPct = pct(dmTotalBooked, dmTotalConvos);
   const dmShowPct = pct(dmTotalLive, dmTotalBooked);
   const dmTotalRevenue = dmStats.reduce((s, r) => s + r.revenue, 0);
@@ -297,20 +300,20 @@ export default async function SetterKpisPage({
               <table className="w-full min-w-[1100px]">
                 <thead>
                   <tr>
-                    <SortableTh label="Rep" field="name" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="left" />
-                    <SortableTh label="Hours" field="hours" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
-                    <SortableTh label="Dials" field="dials" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
-                    <SortableTh label="Pickups" field="pickups" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
-                    <SortableTh label="Q Convos" field="qConvos" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
-                    <SortableTh label="Booked" field="booked" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
-                    <SortableTh label="Shows" field="shows" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
-                    <SortableTh label="Set%" field="setRate" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
-                    <SortableTh label="Show%" field="showRate" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
-                    <SortableTh label="D/Hr" field="dialsPerHour" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
-                    <SortableTh label="Dials/Bkd" field="dialsBkd" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
-                    <SortableTh label="Pickup%" field="pickupPct" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
-                    <SortableTh label="Convos/Hr" field="convosPerHr" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
-                    <SortableTh label="Revenue" field="revenue" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Rep" field="name" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="left" />
+                    <SortableTh label="Hours" field="hours" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Dials" field="dials" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Pickups" field="pickups" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Q Convos" field="qConvos" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Booked" field="booked" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Shows" field="shows" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Set%" field="setRate" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Show%" field="showRate" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="D/Hr" field="dialsPerHour" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Dials/Bkd" field="dialsBkd" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Pickup%" field="pickupPct" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Convos/Hr" field="convosPerHr" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Revenue" field="revenue" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
                   </tr>
                 </thead>
                 <tbody>
@@ -358,6 +361,10 @@ export default async function SetterKpisPage({
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 animate-stagger-2 mb-5">
               <div>
+                <div className="text-xs text-brand-textFaint mb-1">Swipe-Ups</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmTotalSwipeUps}</div>
+              </div>
+              <div>
                 <div className="text-xs text-brand-textFaint mb-1">Total Booked</div>
                 <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmTotalBooked}</div>
               </div>
@@ -389,15 +396,15 @@ export default async function SetterKpisPage({
               <table className="w-full min-w-[750px]">
                 <thead>
                   <tr>
-                    <SortableTh label="Rep" field="name" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="left" />
-                    <SortableTh label="Convos" field="convos" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
-                    <SortableTh label="Follow Ups" field="followUps" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
-                    <SortableTh label="Booked" field="booked" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
-                    <SortableTh label="Live Calls" field="liveCalls" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
-                    <SortableTh label="Sets Closed" field="setsClosed" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
-                    <SortableTh label="Book%" field="bookRate" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
-                    <SortableTh label="Show%" field="showRate" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
-                    <SortableTh label="Revenue" field="revenue" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
+                    <SortableTh label="Rep" field="name" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="left" />
+                    <SortableTh label="Convos" field="convos" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Follow Ups" field="followUps" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Booked" field="booked" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Live Calls" field="liveCalls" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Sets Closed" field="setsClosed" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Book%" field="bookRate" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
+                    <SortableTh label="Show%" field="showRate" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
+                    <SortableTh label="Revenue" field="revenue" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
                   </tr>
                 </thead>
                 <tbody>

@@ -332,7 +332,13 @@ export default function OffersPage() {
         const j = await res.json().catch(() => null);
         throw new Error(j?.error ?? "Failed to sync offer.");
       }
-      toast.success("Dashboard synced.");
+      const j = await res.json().catch(() => null);
+      const counts = j?.counts;
+      toast.success(
+        counts
+          ? `Synced — ${counts.closer} closer, ${counts.phone} phone, ${counts.dm} DM rows.`
+          : "Dashboard synced.",
+      );
       await loadOffers(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to sync offer.");

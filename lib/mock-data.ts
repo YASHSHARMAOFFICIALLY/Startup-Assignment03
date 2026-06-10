@@ -28,14 +28,14 @@ export const MOCK_DASHBOARD: DashboardData = {
     cashCollected: 0,
   },
   closers: [
-    { id: "1", name: "Lucio", rank: 1, cashCollected: 10000, dealsClosed: 2, bookedToClose: 2, avgDealValue: 5000 },
-    { id: "2", name: "Adamo", rank: 2, cashCollected: 6000, dealsClosed: 1, bookedToClose: null, avgDealValue: 5000 },
-    { id: "3", name: "Charlie", rank: 3, cashCollected: 0, dealsClosed: 0, bookedToClose: null, avgDealValue: null },
+    { id: "1", name: "Demo Closer A", rank: 1, cashCollected: 10000, dealsClosed: 2, bookedToClose: 2, avgDealValue: 5000 },
+    { id: "2", name: "Demo Closer B", rank: 2, cashCollected: 6000, dealsClosed: 1, bookedToClose: null, avgDealValue: 5000 },
+    { id: "3", name: "Demo Closer C", rank: 3, cashCollected: 0, dealsClosed: 0, bookedToClose: null, avgDealValue: null },
   ],
   setters: [
-    { id: "1", name: "Fahima", rank: 1, callsSet: 39, revenueGenerated: 0, showRate: 33 },
-    { id: "2", name: "Joshua", rank: 2, callsSet: 18, revenueGenerated: 0, showRate: 28 },
-    { id: "3", name: "Charlie", rank: 3, callsSet: 29, revenueGenerated: 0, showRate: 24 },
+    { id: "1", name: "Demo Setter A", rank: 1, callsSet: 39, revenueGenerated: 0, showRate: 33 },
+    { id: "2", name: "Demo Setter B", rank: 2, callsSet: 18, revenueGenerated: 0, showRate: 28 },
+    { id: "3", name: "Demo Setter C", rank: 3, callsSet: 29, revenueGenerated: 0, showRate: 24 },
   ],
   deltas: {
     totalRevenue: 12,

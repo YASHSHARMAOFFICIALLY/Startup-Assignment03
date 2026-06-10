@@ -203,10 +203,12 @@ function BottomStat({
 export default async function FunnelPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; offerId?: string }>;
+  searchParams: Promise<{ period?: string; offerId?: string; from?: string; to?: string }>;
 }) {
   let records: Awaited<ReturnType<typeof readAllRecords>>;
   let period: PeriodKey;
+  let fromStr: string | null = null;
+  let toStr: string | null = null;
 
   try {
     const params = await searchParams;
@@ -216,6 +218,8 @@ export default async function FunnelPage({
     ]);
     records = rec;
     period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
+    fromStr = params.from || null;
+    toStr = params.to || null;
   } catch (e) {
     console.error("[SalesIO] Funnel failed:", e);
     return (
@@ -240,7 +244,7 @@ export default async function FunnelPage({
     );
   }
 
-  const range = resolvePeriod(period, null, null, new Date());
+  const range = resolvePeriod(period, fromStr, toStr, new Date());
   const inRange = (d: string) =>
     (range.from === null || d >= range.from) &&
     (range.to === null || d <= range.to);
@@ -255,6 +259,13 @@ export default async function FunnelPage({
   const qualified = phone.reduce((s, r) => s + r.qConvos, 0);
   const bookedCall = phone.reduce((s, r) => s + r.booked, 0) + dm.reduce((s, r) => s + r.booked, 0);
   const won = closer.reduce((s, r) => s + r.dealsClosed, 0);
+
+  // Setter → Closer handoff seam
+  const setterShows = phone.reduce((s, r) => s + r.shows, 0) + dm.reduce((s, r) => s + r.liveCalls, 0);
+  const closerCalls = closer.reduce((s, r) => s + r.totalCalls, 0);
+  const carriedPct = setterShows > 0 ? Math.min(100, Math.round((closerCalls / setterShows) * 100)) : null;
+  const leak = Math.max(0, setterShows - closerCalls);
+  const leakPct = setterShows > 0 ? Math.round((leak / setterShows) * 100) : null;
 
   // Bottom stats
   const noShows = closer.reduce((s, r) => s + r.noShows, 0);
@@ -322,8 +333,58 @@ export default async function FunnelPage({
         <FunnelChart stages={stages} />
       </Panel>
 
+      {/* Setter → Closer Handoff seam */}
+      <Panel className="ring-1 ring-brand-accent/20 animate-stagger-4">
+        <div className="text-xs font-medium tracking-wider uppercase text-brand-textFaint mb-3">
+          Setter → Closer Handoff
+        </div>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex flex-col items-center gap-0.5 min-w-[72px]">
+            <span className="text-[11px] text-brand-textFaint">Setter Shows</span>
+            <span className="text-xl font-semibold tabular-nums text-brand-textPrimary">
+              {setterShows > 0 ? setterShows.toLocaleString() : "—"}
+            </span>
+          </div>
+          <span className="text-brand-textFaint text-lg">→</span>
+          <div className="flex flex-col items-center gap-0.5 min-w-[80px]">
+            <span className="text-[11px] text-brand-textFaint">Closer Calendar</span>
+            <span className="text-xl font-semibold tabular-nums text-brand-textPrimary">
+              {closerCalls > 0 ? closerCalls.toLocaleString() : "—"}
+            </span>
+          </div>
+          <span className="text-brand-textFaint text-lg">→</span>
+          <div className="flex flex-col items-center gap-0.5 min-w-[80px]">
+            <span className="text-[11px] text-brand-textFaint">Carried Through</span>
+            {carriedPct !== null ? (
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-base font-semibold tabular-nums ${
+                  carriedPct >= 80
+                    ? "bg-brand-positive/10 text-brand-positive"
+                    : carriedPct >= 50
+                    ? "bg-amber-400/10 text-amber-400"
+                    : "bg-brand-negative/10 text-brand-negative"
+                }`}
+              >
+                {carriedPct}%
+              </span>
+            ) : (
+              <span className="text-xl font-semibold text-brand-textFaint">—</span>
+            )}
+          </div>
+        </div>
+        {setterShows > 0 && leak > 0 && (
+          <p className="mt-3 text-xs text-brand-textMuted">
+            {leak.toLocaleString()} booked show{leak !== 1 ? "s" : ""} never reached a closer calendar this period
+            {leakPct !== null ? ` (${leakPct}% leak)` : ""}.
+          </p>
+        )}
+        <p className="mt-1.5 text-[11px] text-brand-textFaint">
+          Where booked calls leak before the closer dials.
+        </p>
+      </Panel>
+
       {/* Bottom counters */}
-      <div className="flex flex-wrap gap-6 px-1 animate-stagger-4">
+      <div className="flex flex-wrap gap-6 px-1 animate-stagger-5">
         <BottomStat dot="bg-red-400" label="No shows" value={noShows} />
         <BottomStat dot="bg-emerald-400" label="Deposits" value={deposits} />
         <BottomStat dot="bg-amber-400" label="Cancellations" value={cancellations} />

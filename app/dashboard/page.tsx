@@ -7,7 +7,7 @@ import { MOCK_DASHBOARD } from "@/lib/mock-data";
 import { aggregate } from "@/lib/sheet-sync";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { authOptions } from "@/lib/auth";
-import { readAllRecords, buildAliasMap } from "@/lib/api-utils";
+import { readAllRecords, buildAliasMap, readReps } from "@/lib/api-utils";
 import { readSettings } from "@/lib/settings";
 import { fmtCurrency, fmtCurrencyOrDash, fmtPercentOrDash, rankBadgeClass } from "@/lib/formatters";
 import { th, tdNum, trHover } from "@/lib/table-styles";
@@ -20,22 +20,25 @@ import { AutoSync } from "@/components/dashboard/auto-sync";
 
 export const dynamic = "force-dynamic";
 
-const LEADERBOARD_ROWS = 5;
-
 async function loadDashboardData(
   period: PeriodKey,
   from: string | null,
   to: string | null,
-  offerId?: string,
+  offerId: string | undefined,
+  settings: Awaited<ReturnType<typeof readSettings>>,
 ): Promise<{ data: DashboardData; source: "synced" | "mock" | "error"; error?: string }> {
   try {
     const records = await readAllRecords(offerId);
     if (records.closer.length === 0 && records.phone.length === 0 && records.dm.length === 0) {
       return { data: MOCK_DASHBOARD, source: "mock" };
     }
-    const [aliasMap, settings] = await Promise.all([buildAliasMap(), readSettings()]);
+    const [aliasMap, reps] = await Promise.all([buildAliasMap(), readReps()]);
+    const repCommissionRates = new Map<string, number>();
+    for (const rep of reps) {
+      if (rep.commissionRate != null) repCommissionRates.set(rep.displayName, rep.commissionRate);
+    }
     const range = resolvePeriod(period, from, to, new Date());
-    const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate);
+    const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate, repCommissionRates);
     return { data, source: "synced" };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Failed to load dashboard data.";
@@ -57,10 +60,12 @@ export default async function DashboardPage({
 
   const session = await getServerSession(authOptions);
   const userName = session?.user?.name?.split(" ")[0] ?? "there";
-  const { data, source, error } = await loadDashboardData(period, from, to, offerId);
+  const { data, source, error } = await loadDashboardData(period, from, to, offerId, settings);
   const { closerKPIs, setterKPIs, closers, setters } = data;
 
-  const closerRows = Array.from({ length: LEADERBOARD_ROWS }, (_, i) => {
+  const leaderboardRows = settings.leaderboardRows;
+
+  const closerRows = Array.from({ length: leaderboardRows }, (_, i) => {
     const rep = closers[i];
     if (!rep) return { rank: i + 1, name: "\u2014", cash: "\u2014", rate: "\u2014", avg: "\u2014" };
     return {
@@ -72,7 +77,7 @@ export default async function DashboardPage({
     };
   });
 
-  const setterRows = Array.from({ length: LEADERBOARD_ROWS }, (_, i) => {
+  const setterRows = Array.from({ length: leaderboardRows }, (_, i) => {
     const rep = setters[i];
     if (!rep) return { rank: i + 1, name: "\u2014", calls: "\u2014", rev: "\u2014" };
     return {

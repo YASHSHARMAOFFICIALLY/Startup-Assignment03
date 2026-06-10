@@ -39,6 +39,7 @@ export function KpiPanels({
     { label: "Show \u2192 Close", val: closerKPIs.showToClose, format: "percent" },
     { label: "Offer \u2192 Close", val: closerKPIs.offerToClose, format: "percent" },
     { label: "Cash / Booked Call", val: closerKPIs.cashPerBookedCall, format: "currency" },
+    { label: "Commissions Paid", val: closerKPIs.commissionsPaid, format: "currency" },
   ];
 
   const setterKpis: Metric[] = [
@@ -48,6 +49,7 @@ export function KpiPanels({
     { label: "DM Book Rate", val: setterKPIs.dmBookRate, format: "percent" },
     { label: "DM Show Rate", val: setterKPIs.dmShowRate, format: "percent" },
     { label: "Revenue Generated", val: setterKPIs.revenueGenerated, format: "currency" },
+    { label: "Cash Collected", val: setterKPIs.cashCollected, format: "currency" },
   ];
 
   return (

@@ -47,3 +47,5 @@ next-env.d.ts
 
 # local audit notes (contains security findings — never commit)
 audit-report-*.md
+.superstack/
+.claude/

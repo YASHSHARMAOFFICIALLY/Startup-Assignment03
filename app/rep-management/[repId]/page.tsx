@@ -52,7 +52,7 @@ export default async function RepProfilePage({
   searchParams,
 }: {
   params: Promise<{ repId: string }>;
-  searchParams: Promise<{ period?: string; offerId?: string }>;
+  searchParams: Promise<{ period?: string; offerId?: string; from?: string; to?: string }>;
 }) {
   const { repId } = await params;
   const sp = await searchParams;
@@ -72,7 +72,7 @@ export default async function RepProfilePage({
   for (const a of rep.aliases) aliasSet.add(a);
 
   const records = await readAllRecords(sp.offerId || undefined);
-  const range = resolvePeriod(period, null, null, new Date());
+  const range = resolvePeriod(period, sp.from ?? null, sp.to ?? null, new Date());
   const inRange = (d: string) =>
     (range.from === null || d >= range.from) &&
     (range.to === null || d <= range.to);

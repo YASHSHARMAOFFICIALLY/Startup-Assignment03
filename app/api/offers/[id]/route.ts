@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 
-import { authOptions } from "@/lib/auth";
+import { getSessionUser } from "@/lib/session";
 import {
   updateOffer,
   deleteOffer,
@@ -17,9 +16,9 @@ export async function PUT(
   request: Request,
   props: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const me = await getSessionUser();
+  if (!me || me.role !== "manager") {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
   }
 
   const { id } = await props.params;
@@ -44,8 +43,7 @@ export async function PUT(
     if (!result) {
       return NextResponse.json({ error: "Offer not found." }, { status: 404 });
     }
-    const userId = (session.user as { id?: string })?.id;
-    await logAudit({ userId, action: "offer_updated", resource: "offer", resourceId: id });
+    await logAudit({ userId: me.id, action: "offer_updated", resource: "offer", resourceId: id });
     return NextResponse.json(result);
   } catch {
     return NextResponse.json(
@@ -60,9 +58,9 @@ export async function DELETE(
   _request: Request,
   props: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession(authOptions);
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const me = await getSessionUser();
+  if (!me || me.role !== "manager") {
+    return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
   }
 
   const { id } = await props.params;
@@ -72,8 +70,7 @@ export async function DELETE(
     if (!found) {
       return NextResponse.json({ error: "Offer not found." }, { status: 404 });
     }
-    const userId = (session.user as { id?: string })?.id;
-    await logAudit({ userId, action: "offer_deleted", resource: "offer", resourceId: id });
+    await logAudit({ userId: me.id, action: "offer_deleted", resource: "offer", resourceId: id });
     return NextResponse.json({ success: true });
   } catch {
     return NextResponse.json(

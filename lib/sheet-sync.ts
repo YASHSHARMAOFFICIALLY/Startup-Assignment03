@@ -7,7 +7,7 @@ import type {
 
 /* ----------------------------- CSV parsing ------------------------------- */
 
-function parseCSV(text: string): string[][] {
+export function parseCSV(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
@@ -41,7 +41,7 @@ function parseCSV(text: string): string[][] {
 
 /* --------------------------- Number helpers ------------------------------ */
 
-function num(value: string | undefined): number {
+export function num(value: string | undefined): number {
   if (value == null) return 0;
   const n = parseFloat(value.replace(/[$,%\s]/g, ""));
   return Number.isFinite(n) ? n : 0;
@@ -71,7 +71,7 @@ async function fetchNamedTab(id: string, tabName: string): Promise<string[][]> {
 }
 
 // "2026-05-04" -> "2026-05-04" (zero-padded), null if unparseable
-function dayKey(value: string | undefined): string | null {
+export function dayKey(value: string | undefined): string | null {
   if (!value) return null;
   const iso = value.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso)
@@ -329,12 +329,16 @@ export function aggregate(
   let commissionsPaid = commissionRate ? Math.round(cCash * commissionRate / 100) : 0;
   if (repCommissionRates) {
     const cashByRep = new Map<string, number>();
+    let unnamedCash = 0;
     for (const r of closer) {
-      if (!r.name) continue;
+      if (!r.name) {
+        unnamedCash += r.cash;
+        continue;
+      }
       const name = resolveName(r.name);
       cashByRep.set(name, (cashByRep.get(name) ?? 0) + r.cash);
     }
-    let total = 0;
+    let total = unnamedCash * ((commissionRate ?? 0) / 100);
     for (const [name, repCash] of cashByRep) {
       total += repCash * ((repCommissionRates.get(name) ?? commissionRate ?? 0) / 100);
     }

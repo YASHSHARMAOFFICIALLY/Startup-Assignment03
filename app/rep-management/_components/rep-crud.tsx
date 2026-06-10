@@ -47,6 +47,7 @@ type FormState = {
   roles: string[];
   status: string;
   targetValue: string;
+  commissionRate: string;
 };
 
 const ROLES = [
@@ -73,6 +74,7 @@ const emptyForm = (): FormState => ({
   roles: [],
   status: "active",
   targetValue: "",
+  commissionRate: "",
 });
 
 function repToForm(rep: RepRow, currentMonth: string): FormState {
@@ -82,6 +84,7 @@ function repToForm(rep: RepRow, currentMonth: string): FormState {
     roles: rep.roles,
     status: rep.status,
     targetValue: rep.targets[currentMonth]?.toString() ?? "",
+    commissionRate: rep.commissionRate != null ? rep.commissionRate.toString() : "",
   };
 }
 
@@ -90,11 +93,17 @@ export function RepCrud({
   unrecognizedNames,
   currentMonth,
   showArchived,
+  lastActive,
+  headline,
+  periodLabel,
 }: {
   initialReps: RepRow[];
   unrecognizedNames: string[];
   currentMonth: string;
   showArchived: boolean;
+  lastActive: Record<string, string>;
+  headline: Record<string, string>;
+  periodLabel: string;
 }) {
   const router = useRouter();
   const [reps, setReps] = useState(initialReps);
@@ -151,12 +160,15 @@ export function RepCrud({
       targets[currentMonth] = targetNum;
     }
 
+    const commRate = form.commissionRate !== "" ? parseFloat(form.commissionRate) : null;
+
     const body = {
       displayName: form.displayName,
       aliases,
       roles: form.roles,
       ...(editingId ? { status: form.status } : {}),
       targets,
+      commissionRate: commRate !== null && !isNaN(commRate) ? commRate : null,
     };
 
     const url = editingId ? `/api/reps/${editingId}` : "/api/reps";
@@ -283,7 +295,7 @@ export function RepCrud({
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[700px]">
+            <table className="w-full min-w-[900px]">
               <thead>
                 <tr>
                   <th scope="col" className={th}>
@@ -297,6 +309,12 @@ export function RepCrud({
                   </th>
                   <th scope="col" className={`${th} text-right`}>
                     {monthLabel} Target
+                  </th>
+                  <th scope="col" className={`${th} text-right`}>
+                    {periodLabel}
+                  </th>
+                  <th scope="col" className={`${th} text-right`}>
+                    Last Active
                   </th>
                   <th scope="col" className={`${th} text-center`}>
                     Status
@@ -313,6 +331,11 @@ export function RepCrud({
                       className={`${td} font-medium text-brand-textSecondary`}
                     >
                       <Link href={`/rep-management/${rep.id}`} className="hover:text-brand-accent transition-colors">{rep.displayName}</Link>
+                      {rep.commissionRate != null && (
+                        <span className="ml-1.5 text-[10px] text-brand-textFaint">
+                          {rep.commissionRate}% comm
+                        </span>
+                      )}
                     </td>
                     <td className={td}>
                       <div className="flex gap-1 flex-wrap">
@@ -337,6 +360,14 @@ export function RepCrud({
                     <td className={`${tdNum} text-right text-brand-textSecondary`}>
                       {rep.targets[currentMonth] != null
                         ? fmtCurrency(rep.targets[currentMonth])
+                        : "\u2014"}
+                    </td>
+                    <td className={`${tdNum} text-right text-brand-textSecondary`}>
+                      {headline[rep.id] ?? "\u2014"}
+                    </td>
+                    <td className={`${tdNum} text-right text-brand-textMuted tabular-nums`}>
+                      {lastActive[rep.id]
+                        ? new Date(lastActive[rep.id] + "T00:00:00").toLocaleDateString(undefined, { month: "short", day: "numeric", year: "2-digit" })
                         : "\u2014"}
                     </td>
                     <td className={`${td} text-center`}>
@@ -462,6 +493,24 @@ export function RepCrud({
                 placeholder="e.g., 20000"
                 disabled={editingId != null && form.status === "archived"}
               />
+            </div>
+            <div>
+              <Label htmlFor="commissionRate">Commission % (override)</Label>
+              <Input
+                id="commissionRate"
+                type="number"
+                min={0}
+                max={100}
+                step={0.1}
+                value={form.commissionRate}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, commissionRate: e.target.value }))
+                }
+                placeholder="Leave blank to use global rate"
+              />
+              <p className="text-[11px] text-brand-textFaint mt-1">
+                Overrides the global commission rate for this rep.
+              </p>
             </div>
             {editingId && (
               <div>

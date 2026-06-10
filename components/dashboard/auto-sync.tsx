@@ -9,6 +9,9 @@ export function AutoSync() {
   const router = useRouter();
 
   useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    let cancelled = false;
+
     const sync = async () => {
       try {
         // Fetch all offers, then sync each one
@@ -31,8 +34,24 @@ export function AutoSync() {
       }
     };
 
-    const interval = setInterval(sync, SYNC_INTERVAL_MS);
-    return () => clearInterval(interval);
+    const start = async () => {
+      try {
+        const res = await fetch("/api/settings", { cache: "no-store" });
+        if (res.ok) {
+          const settings = await res.json();
+          if (settings.autoSyncMode === "off") return;
+        }
+      } catch {
+        // Settings unreadable — fall through and poll as before
+      }
+      if (!cancelled) interval = setInterval(sync, SYNC_INTERVAL_MS);
+    };
+    start();
+
+    return () => {
+      cancelled = true;
+      if (interval) clearInterval(interval);
+    };
   }, [router]);
 
   return null;

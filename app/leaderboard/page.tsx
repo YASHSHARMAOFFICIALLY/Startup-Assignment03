@@ -3,10 +3,10 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { aggregate, priorRange } from "@/lib/sheet-sync";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
-import { readAllRecords, buildAliasMap, buildNameToRepIdMap } from "@/lib/api-utils";
+import { readAllRecords, buildAliasMap, buildNameToRepIdMap, readReps } from "@/lib/api-utils";
 import { readSettings } from "@/lib/settings";
 import type { CloserRep, SetterRep } from "@/lib/types";
-import type { PhoneRecord } from "@/lib/sheet-sync";
+import type { PhoneRecord, DmRecord } from "@/lib/sheet-sync";
 import { fmtCurrency, fmtCurrencyOrDash, fmtPercentOrDash, rankBadgeClass } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
 import { Panel } from "@/components/ui/panel";
@@ -16,7 +16,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 /* ----------------------------- Sort helpers -------------------------------- */
 
 type CloserSortKey = "cash" | "deals" | "closeRate" | "avgDeal";
-type SetterSortKey = "callsSet" | "revenue";
+type SetterSortKey = "callsSet" | "revenue" | "showRate";
 
 const CLOSER_SORTS: { key: CloserSortKey; label: string }[] = [
   { key: "cash", label: "Cash" },
@@ -28,6 +28,7 @@ const CLOSER_SORTS: { key: CloserSortKey; label: string }[] = [
 const SETTER_SORTS: { key: SetterSortKey; label: string }[] = [
   { key: "callsSet", label: "Calls Set" },
   { key: "revenue", label: "Revenue" },
+  { key: "showRate", label: "Show Rate" },
 ];
 
 function sortClosers(reps: CloserRep[], by: CloserSortKey): CloserRep[] {
@@ -43,6 +44,7 @@ function sortClosers(reps: CloserRep[], by: CloserSortKey): CloserRep[] {
 function sortSetters(reps: SetterRep[], by: SetterSortKey): SetterRep[] {
   const sorted = [...reps].sort((a, b) => {
     if (by === "callsSet") return b.callsSet - a.callsSet;
+    if (by === "showRate") return b.showRate - a.showRate;
     return b.revenueGenerated - a.revenueGenerated;
   });
   return sorted.map((r, i) => ({ ...r, rank: i + 1 }));
@@ -120,6 +122,45 @@ function buildSetterPhoneStats(
     }));
 }
 
+/* ----------------------------- DM setter stats ----------------------------- */
+
+type DmSetterStats = {
+  name: string;
+  convos: number;
+  booked: number;
+  live: number;
+  bookRate: number | null;
+  revenue: number;
+};
+
+function buildDmSetterStats(
+  dm: DmRecord[],
+  aliasMap: Map<string, string>,
+): DmSetterStats[] {
+  const byRep = new Map<string, { convos: number; booked: number; live: number; revenue: number }>();
+  for (const r of dm) {
+    if (!r.name) continue;
+    const name = aliasMap.get(r.name) ?? r.name;
+    const cur = byRep.get(name) ?? { convos: 0, booked: 0, live: 0, revenue: 0 };
+    cur.convos += r.convos;
+    cur.booked += r.booked;
+    cur.live += r.liveCalls;
+    cur.revenue += r.revenue;
+    byRep.set(name, cur);
+  }
+  return Array.from(byRep.entries())
+    .map(([name, v]) => ({
+      name,
+      convos: v.convos,
+      booked: v.booked,
+      live: v.live,
+      bookRate: v.convos > 0 ? Math.round((v.booked / v.convos) * 100) : null,
+      revenue: v.revenue,
+    }))
+    .sort((a, b) => b.booked - a.booked)
+    .slice(0, 10);
+}
+
 /* ----------------------------- Setter card leaderboard --------------------- */
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -185,7 +226,7 @@ function SetterCardLeaderboard({
   return (
     <div className="space-y-8">
       <div className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">
-        Setter Leaderboard — {periodLabel}
+        Phone Activity — {periodLabel}
       </div>
 
       {/* Dials section */}
@@ -278,14 +319,25 @@ function MetricToggle<K extends string>({
 
 /* ----------------------------- Podium (Style C) --------------------------- */
 
+function PodiumName({ name, nameToRepId, className }: { name: string; nameToRepId: Map<string, string>; className: string }) {
+  const repId = nameToRepId.get(name);
+  return repId ? (
+    <Link href={`/rep-management/${repId}`} className={`${className} hover:text-brand-accent transition-colors`}>{name}</Link>
+  ) : (
+    <span className={className}>{name}</span>
+  );
+}
+
 function PodiumHero({
   reps,
   priorMap,
   formatValue,
+  nameToRepId,
 }: {
   reps: { name: string; rank: number }[];
   priorMap: Map<string, number>;
   formatValue: (rep: (typeof reps)[number]) => string;
+  nameToRepId: Map<string, string>;
 }) {
   const top3 = reps.slice(0, 3);
   if (top3.length === 0) return null;
@@ -309,7 +361,9 @@ function PodiumHero({
           1
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-normal text-brand-textPrimary truncate">{first.name}</div>
+          <div className="text-sm font-normal text-brand-textPrimary truncate">
+            <PodiumName name={first.name} nameToRepId={nameToRepId} className="text-brand-textPrimary" />
+          </div>
         </div>
         <div className="text-right shrink-0">
           <div className={`text-lg font-semibold ${medalColors[0].text}`}>{formatValue(first)}</div>
@@ -330,7 +384,9 @@ function PodiumHero({
               {rep.rank}
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[13px] font-normal text-brand-textSecondary truncate">{rep.name}</div>
+              <div className="text-[13px] font-normal text-brand-textSecondary truncate">
+                <PodiumName name={rep.name} nameToRepId={nameToRepId} className="text-brand-textSecondary" />
+              </div>
             </div>
             <div className="text-right shrink-0">
               <div className={`text-[14px] font-semibold ${medalColors[mi].text}`}>{formatValue(rep)}</div>
@@ -348,13 +404,14 @@ function PodiumHero({
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; closerSort?: string; setterSort?: string; offerId?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string; closerSort?: string; setterSort?: string; offerId?: string }>;
 }) {
   let closers: CloserRep[] = [];
   let setters: SetterRep[] = [];
   let priorClosers: CloserRep[] = [];
   let priorSetters: SetterRep[] = [];
   let phoneStats: SetterPhoneStats[] = [];
+  let dmStats: DmSetterStats[] = [];
   let periodLabel = "Month to Date";
   let nameToRepId = new Map<string, string>();
   let rawParams: Record<string, string | undefined> = {};
@@ -364,17 +421,21 @@ export default async function LeaderboardPage({
 
   try {
     const params = await searchParams;
-    const [records, aliasMap, ntrId, settings] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings()]);
+    const [records, aliasMap, ntrId, settings, reps] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings(), readReps()]);
     nameToRepId = ntrId;
+    const repCommissionRates = new Map<string, number>();
+    for (const rep of reps) {
+      if (rep.commissionRate != null) repCommissionRates.set(rep.displayName, rep.commissionRate);
+    }
     const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
     closerSort = (CLOSER_SORTS.find((s) => s.key === params.closerSort)?.key ?? "cash") as CloserSortKey;
     setterSort = (SETTER_SORTS.find((s) => s.key === params.setterSort)?.key ?? "callsSet") as SetterSortKey;
     hasData = records.closer.length > 0 || records.phone.length > 0 || records.dm.length > 0;
 
     if (hasData) {
-      const range = resolvePeriod(period, null, null, new Date());
+      const range = resolvePeriod(period, params.from || null, params.to || null, new Date());
       periodLabel = range.label;
-      const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate);
+      const data = aggregate(records, range.from, range.to, range.label, aliasMap, settings.commissionRate, repCommissionRates);
       closers = sortClosers(data.closers, closerSort);
       setters = sortSetters(data.setters, setterSort);
 
@@ -382,6 +443,9 @@ export default async function LeaderboardPage({
       const inRange = (d: string) => (range.from === null || d >= range.from) && (range.to === null || d <= range.to);
       const filteredPhone = records.phone.filter((r) => inRange(r.date));
       phoneStats = buildSetterPhoneStats(filteredPhone, aliasMap);
+
+      const filteredDm = records.dm.filter((r) => inRange(r.date));
+      dmStats = buildDmSetterStats(filteredDm, aliasMap);
 
       const prev = priorRange(range.from, range.to);
       if (prev.from && prev.to) {
@@ -391,7 +455,7 @@ export default async function LeaderboardPage({
       }
     }
 
-    rawParams = { period: params.period, closerSort: params.closerSort, setterSort: params.setterSort };
+    rawParams = { period: params.period, from: params.from, to: params.to, closerSort: params.closerSort, setterSort: params.setterSort, offerId: params.offerId };
   } catch (e) {
     console.error("[SalesIO] Leaderboard failed:", e);
     return (
@@ -458,6 +522,7 @@ export default async function LeaderboardPage({
                 reps={closers}
                 priorMap={priorCloserMap}
                 formatValue={(r) => fmtCurrency((r as CloserRep).cashCollected)}
+                nameToRepId={nameToRepId}
               />
 
               {closerMostImproved && (
@@ -515,12 +580,146 @@ export default async function LeaderboardPage({
           )}
         </Panel>
 
-        {/* Setters — Card Leaderboard */}
+        {/* Setters — combined phone + DM */}
         <Panel className="animate-stagger-3">
-          {phoneStats.length === 0 ? (
+          <h2 className="text-[13px] font-medium text-brand-textSecondary mb-4">
+            Setters
+            <span className="ml-2 text-xs text-brand-textFaint font-normal">({setters.length} reps)</span>
+          </h2>
+
+          {setters.length === 0 ? (
             <EmptyState title="No data" description="No setter data for this period." />
           ) : (
+            <>
+              <PodiumHero
+                reps={setters}
+                priorMap={priorSetterMap}
+                formatValue={(r) => {
+                  const rep = r as SetterRep;
+                  if (setterSort === "revenue") return fmtCurrency(rep.revenueGenerated);
+                  if (setterSort === "showRate") return fmtPercentOrDash(rep.showRate);
+                  return rep.callsSet.toLocaleString();
+                }}
+                nameToRepId={nameToRepId}
+              />
+
+              {setterMostImproved && (
+                <div className="mb-4 px-3 py-2 rounded-lg bg-brand-positive/5 border border-brand-positive/10 text-xs">
+                  <span className="text-brand-positive font-medium">Most Improved:</span>{" "}
+                  <span className="text-brand-textSecondary">{setterMostImproved}</span>
+                </div>
+              )}
+
+              <MetricToggle options={SETTER_SORTS} active={setterSort} paramName="setterSort" searchParams={rawParams} />
+
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr>
+                      <th scope="col" className={th}>#</th>
+                      <th scope="col" className={`${th} text-center`}>Trend</th>
+                      <th scope="col" className={th}>Rep</th>
+                      <th scope="col" className={`${th} text-center`}>Calls Set</th>
+                      <th scope="col" className={`${th} text-right`}>Revenue</th>
+                      <th scope="col" className={`${th} text-right`}>Show Rate</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {setters.map((rep) => (
+                      <tr key={rep.id} className={trHover}>
+                        <td className={td}>
+                          {rep.rank <= 3 ? (
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${rankBadgeClass(rep.rank)}`}>
+                              {rep.rank}
+                            </div>
+                          ) : (
+                            <span className="text-brand-textFaint ml-1">{rep.rank}</span>
+                          )}
+                        </td>
+                        <td className={`${td} text-center`}>
+                          <RankChange current={rep} priorMap={priorSetterMap} />
+                        </td>
+                        <td className={`${td} font-medium text-brand-textSecondary`}>
+                          {nameToRepId.get(rep.name) ? (
+                            <Link href={`/rep-management/${nameToRepId.get(rep.name)}`} className="hover:text-brand-accent transition-colors">{rep.name}</Link>
+                          ) : rep.name}
+                        </td>
+                        <td className={`${tdNum} text-center text-brand-textPrimary`}>{rep.callsSet}</td>
+                        <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtCurrency(rep.revenueGenerated)}</td>
+                        <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtPercentOrDash(rep.showRate)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Phone-only activity cards */}
+        <Panel className="animate-stagger-4">
+          {phoneStats.length === 0 ? (
+            <EmptyState title="No data" description="No phone setter data for this period." />
+          ) : (
             <SetterCardLeaderboard phoneStats={phoneStats} periodLabel={periodLabel} />
+          )}
+        </Panel>
+
+        {/* DM setters */}
+        <Panel className="animate-stagger-4">
+          <h2 className="text-[13px] font-medium text-brand-textSecondary mb-4">
+            DM Setters
+            <span className="ml-2 text-xs text-brand-textFaint font-normal">(top {dmStats.length} by booked)</span>
+          </h2>
+
+          {dmStats.length === 0 ? (
+            <EmptyState title="No data" description="No DM setter records for this period." />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th scope="col" className={th}>#</th>
+                    <th scope="col" className={th}>Rep</th>
+                    <th scope="col" className={`${th} text-center`}>Convos</th>
+                    <th scope="col" className={`${th} text-center`}>Booked</th>
+                    <th scope="col" className={`${th} text-center`}>Live</th>
+                    <th scope="col" className={`${th} text-right`}>Book%</th>
+                    <th scope="col" className={`${th} text-right`}>Revenue</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dmStats.map((rep, i) => {
+                    const rank = i + 1;
+                    return (
+                      <tr key={rep.name} className={trHover}>
+                        <td className={td}>
+                          {rank <= 3 ? (
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${rankBadgeClass(rank)}`}>
+                              {rank}
+                            </div>
+                          ) : (
+                            <span className="text-brand-textFaint ml-1">{rank}</span>
+                          )}
+                        </td>
+                        <td className={`${td} font-medium text-brand-textSecondary`}>
+                          {nameToRepId.get(rep.name) ? (
+                            <Link href={`/rep-management/${nameToRepId.get(rep.name)}`} className="hover:text-brand-accent transition-colors">{rep.name}</Link>
+                          ) : rep.name}
+                        </td>
+                        <td className={`${tdNum} text-center text-brand-textSecondary`}>{rep.convos}</td>
+                        <td className={`${tdNum} text-center text-brand-textPrimary`}>{rep.booked}</td>
+                        <td className={`${tdNum} text-center text-brand-textSecondary`}>{rep.live}</td>
+                        <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtPercentOrDash(rep.bookRate)}</td>
+                        <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtCurrency(rep.revenue)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </Panel>
       </div>

@@ -4,12 +4,19 @@ import { prisma } from "@/lib/db";
 import { fetchRecordsFromOffer } from "@/lib/sheet-sync";
 import { writeRecords } from "@/lib/api-utils";
 import { logAudit } from "@/lib/audit";
+import { readSettings } from "@/lib/settings";
 
 export const dynamic = "force-dynamic";
 
-const SKIP_IF_SYNCED_WITHIN_MS = 4 * 60 * 1000; // 4 minutes
+// Skip thresholds per auto-sync mode. Note: vercel.json schedules this cron
+// DAILY (Hobby plan limit) — "hourly" only takes effect if the platform cron
+// actually runs more often than once a day.
+const SKIP_THRESHOLD_MS: Record<string, number> = {
+  hourly: 55 * 60 * 1000, // 55 minutes
+  daily: 20 * 60 * 60 * 1000, // 20 hours
+};
 
-// GET /api/cron/sync — called by Vercel Cron every 5 minutes
+// GET /api/cron/sync — called by Vercel Cron (daily on Hobby)
 export async function GET(request: Request) {
   // Verify cron secret (required)
   const authHeader = request.headers.get("authorization");
@@ -18,6 +25,21 @@ export async function GET(request: Request) {
   if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
+
+  const settings = await readSettings();
+  if (settings.autoSyncMode === "off") {
+    await logAudit({
+      action: "cron_sync",
+      resource: "settings",
+      detail: "skipped: auto-sync off",
+    });
+    return NextResponse.json({
+      syncedAt: new Date().toISOString(),
+      offers: [],
+      status: "skipped: auto-sync off",
+    });
+  }
+  const skipWithinMs = SKIP_THRESHOLD_MS[settings.autoSyncMode] ?? SKIP_THRESHOLD_MS.daily;
 
   const offers = await prisma.offer.findMany();
   const results: { id: string; name: string; status: string; counts?: { closer: number; phone: number; dm: number } }[] = [];
@@ -32,7 +54,7 @@ export async function GET(request: Request) {
     // Skip if synced recently
     if (offer.lastSynced) {
       const elapsed = Date.now() - offer.lastSynced.getTime();
-      if (elapsed < SKIP_IF_SYNCED_WITHIN_MS) {
+      if (elapsed < skipWithinMs) {
         results.push({ id: offer.id, name: offer.name, status: "skipped — synced recently" });
         continue;
       }

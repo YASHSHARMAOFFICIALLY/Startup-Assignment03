@@ -156,6 +156,8 @@ export default async function CloserKpisPage({
   const totalCash = stats.reduce((s, r) => s + r.cash, 0);
   const totalRevenue = stats.reduce((s, r) => s + r.revenue, 0);
   const totalDeals = stats.reduce((s, r) => s + r.dealsClosed, 0);
+  const totalDeposits = stats.reduce((s, r) => s + r.deposits, 0);
+  const totalMrr = stats.reduce((s, r) => s + r.mrr, 0);
   const avgShow = stats.length > 0 ? Math.round(stats.reduce((s, r) => s + r.showRate, 0) / stats.length) : 0;
   const avgClose = stats.length > 0 ? Math.round(stats.reduce((s, r) => s + r.bookedToClose, 0) / stats.length) : 0;
 
@@ -208,7 +210,7 @@ export default async function CloserKpisPage({
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-4 animate-stagger-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 animate-stagger-2">
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Total Cash</div>
               <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalCash)}</div>
@@ -220,6 +222,14 @@ export default async function CloserKpisPage({
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Deals</div>
               <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{totalDeals}</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Deposits</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{totalDeposits}</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">MRR</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalMrr)}</div>
             </div>
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Show%</div>
