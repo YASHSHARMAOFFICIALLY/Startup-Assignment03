@@ -33,9 +33,9 @@ export const MOCK_DASHBOARD: DashboardData = {
     { id: "3", name: "Charlie", rank: 3, cashCollected: 0, dealsClosed: 0, bookedToClose: null, avgDealValue: null },
   ],
   setters: [
-    { id: "1", name: "Fahima", rank: 1, callsSet: 39, revenueGenerated: 0 },
-    { id: "2", name: "Joshua", rank: 2, callsSet: 18, revenueGenerated: 0 },
-    { id: "3", name: "Charlie", rank: 3, callsSet: 29, revenueGenerated: 0 },
+    { id: "1", name: "Fahima", rank: 1, callsSet: 39, revenueGenerated: 0, showRate: 33 },
+    { id: "2", name: "Joshua", rank: 2, callsSet: 18, revenueGenerated: 0, showRate: 28 },
+    { id: "3", name: "Charlie", rank: 3, callsSet: 29, revenueGenerated: 0, showRate: 24 },
   ],
   deltas: {
     totalRevenue: 12,

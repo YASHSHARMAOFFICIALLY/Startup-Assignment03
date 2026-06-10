@@ -310,6 +310,7 @@ export function aggregate(
   label: string,
   aliasMap?: Map<string, string>,
   commissionRate?: number,
+  repCommissionRates?: Map<string, number>,
 ): DashboardData {
   const resolveName = aliasMap
     ? (name: string) => aliasMap.get(name) ?? name
@@ -325,10 +326,24 @@ export function aggregate(
   const cOffers = sumBy(closer, (r) => r.offers);
   const cClosed = sumBy(closer, (r) => r.dealsClosed);
   const cCash = sumBy(closer, (r) => r.cash);
+  let commissionsPaid = commissionRate ? Math.round(cCash * commissionRate / 100) : 0;
+  if (repCommissionRates) {
+    const cashByRep = new Map<string, number>();
+    for (const r of closer) {
+      if (!r.name) continue;
+      const name = resolveName(r.name);
+      cashByRep.set(name, (cashByRep.get(name) ?? 0) + r.cash);
+    }
+    let total = 0;
+    for (const [name, repCash] of cashByRep) {
+      total += repCash * ((repCommissionRates.get(name) ?? commissionRate ?? 0) / 100);
+    }
+    commissionsPaid = Math.round(total);
+  }
   const closerKPIs = {
     cashCollected: cCash,
     totalRevenue: sumBy(closer, (r) => r.revenue),
-    commissionsPaid: commissionRate ? Math.round(cCash * commissionRate / 100) : 0,
+    commissionsPaid,
     dealsClosed: cClosed,
     noShows: sumBy(closer, (r) => r.noShows),
     cancellations: sumBy(closer, (r) => r.cancellations),
@@ -383,21 +398,25 @@ export function aggregate(
     .sort((a, b) => b.cashCollected - a.cashCollected)
     .map((r, i) => ({ ...r, rank: i + 1 }));
 
-  const settersMap = new Map<string, { calls: number; rev: number }>();
+  const settersMap = new Map<string, { calls: number; rev: number; shows: number; booked: number }>();
   for (const r of phone) {
     if (!r.name) continue;
     const name = resolveName(r.name);
-    const s = settersMap.get(name) ?? { calls: 0, rev: 0 };
+    const s = settersMap.get(name) ?? { calls: 0, rev: 0, shows: 0, booked: 0 };
     s.calls += r.booked;
     s.rev += r.revenue;
+    s.shows += r.shows;
+    s.booked += r.booked;
     settersMap.set(name, s);
   }
   for (const r of dm) {
     if (!r.name) continue;
     const name = resolveName(r.name);
-    const s = settersMap.get(name) ?? { calls: 0, rev: 0 };
+    const s = settersMap.get(name) ?? { calls: 0, rev: 0, shows: 0, booked: 0 };
     s.calls += r.booked;
     s.rev += r.revenue;
+    s.shows += r.liveCalls;
+    s.booked += r.booked;
     settersMap.set(name, s);
   }
   const setters: SetterRep[] = Array.from(settersMap.entries())
@@ -407,6 +426,7 @@ export function aggregate(
       rank: 0,
       callsSet: v.calls,
       revenueGenerated: v.rev,
+      showRate: pct(v.shows, v.booked),
     }))
     .sort((a, b) => b.callsSet - a.callsSet)
     .map((r, i) => ({ ...r, rank: i + 1 }));

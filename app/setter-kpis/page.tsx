@@ -13,8 +13,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FunnelBar } from "@/components/ui/funnel-bar";
 import { ObjectionPanel } from "@/components/ui/objection-panel";
+import { SortableTh } from "@/components/ui/sortable-th";
+import { parseSort, sortRows } from "@/lib/sort";
 
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
+const fmt1 = (n: number) => n.toFixed(1);
 
 function inRange(d: string, from: string | null, to: string | null) {
   return (from === null || d >= from) && (to === null || d <= to);
@@ -37,8 +40,10 @@ function buildPhoneStats(records: PhoneRecord[], aliasMap: Map<string, string>) 
       setRate: pct(v.booked, v.qConvos),
       showRate: pct(v.shows, v.booked),
       dialsPerHour: v.hours > 0 ? Math.round(v.dials / v.hours) : 0,
-    }))
-    .sort((a, b) => b.booked - a.booked);
+      dialsBkd: v.booked > 0 ? v.dials / v.booked : null as number | null,
+      pickupPct: pct(v.pickups, v.dials),
+      convosPerHr: v.hours > 0 ? v.qConvos / v.hours : null as number | null,
+    }));
 }
 
 function buildDmStats(records: DmRecord[], aliasMap: Map<string, string>) {
@@ -57,13 +62,15 @@ function buildDmStats(records: DmRecord[], aliasMap: Map<string, string>) {
       name, ...v,
       bookRate: pct(v.booked, v.convos),
       showRate: pct(v.liveCalls, v.booked),
-    }))
-    .sort((a, b) => b.booked - a.booked);
+    }));
 }
+
+const PHONE_SORT_FIELDS = ["name", "hours", "dials", "pickups", "qConvos", "booked", "shows", "setRate", "showRate", "dialsPerHour", "dialsBkd", "pickupPct", "convosPerHr", "revenue"];
+const DM_SORT_FIELDS = ["name", "convos", "followUps", "booked", "liveCalls", "setsClosed", "bookRate", "showRate", "revenue"];
 
 type Channel = "all" | "phone" | "dm";
 const CHANNELS: { key: Channel; label: string }[] = [
-  { key: "all", label: "All" },
+  { key: "all", label: "Combined" },
   { key: "phone", label: "Phone" },
   { key: "dm", label: "DM" },
 ];
@@ -71,9 +78,9 @@ const CHANNELS: { key: Channel; label: string }[] = [
 export default async function SetterKpisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; channel?: string; offerId?: string }>;
+  searchParams: Promise<{ period?: string; channel?: string; offerId?: string; from?: string; to?: string; psort?: string; dsort?: string }>;
 }) {
-  let params: { period?: string; channel?: string; offerId?: string };
+  let params: { period?: string; channel?: string; offerId?: string; from?: string; to?: string; psort?: string; dsort?: string };
   let phoneStats: ReturnType<typeof buildPhoneStats> = [];
   let dmStats: ReturnType<typeof buildDmStats> = [];
   let phone: PhoneRecord[] = [];
@@ -88,7 +95,9 @@ export default async function SetterKpisPage({
     nameToRepId = ntrId;
     const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
     channel = (CHANNELS.find((c) => c.key === params.channel)?.key ?? "all") as Channel;
-    const range = resolvePeriod(period, null, null, new Date());
+    const from = params.from ?? null;
+    const to = params.to ?? null;
+    const range = resolvePeriod(period, from, to, new Date());
     phone = records.phone.filter((r) => inRange(r.date, range.from, range.to));
     dm = records.dm.filter((r) => inRange(r.date, range.from, range.to));
     const allPhoneStats = buildPhoneStats(phone, aliasMap);
@@ -116,23 +125,64 @@ export default async function SetterKpisPage({
 
   params = params!;
 
-  /* Phone summary aggregates */
+  /* Sorting */
+  const pSortRaw = params.psort;
+  const dSortRaw = params.dsort;
+  const { field: pField, dir: pDir } = parseSort(pSortRaw, PHONE_SORT_FIELDS, "-booked");
+  const { field: dField, dir: dDir } = parseSort(dSortRaw, DM_SORT_FIELDS, "-booked");
+  const sortedPhone = sortRows(phoneStats, pField, pDir);
+  const sortedDm = sortRows(dmStats, dField, dDir);
+
+  /* Shared query object for SortableTh (preserves all params except sort) */
+  const baseQuery: Record<string, string> = {};
+  if (params.period) baseQuery.period = params.period;
+  if (params.channel) baseQuery.channel = params.channel;
+  if (params.from) baseQuery.from = params.from;
+  if (params.to) baseQuery.to = params.to;
+  if (params.offerId) baseQuery.offerId = params.offerId;
+
+  const phoneQuery = { ...baseQuery };
+  if (pSortRaw) phoneQuery.psort = pSortRaw;
+  // dsort preserved in phone headers
+  if (dSortRaw) phoneQuery.dsort = dSortRaw;
+
+  const dmQuery = { ...baseQuery };
+  if (dSortRaw) dmQuery.dsort = dSortRaw;
+  // psort preserved in dm headers
+  if (pSortRaw) dmQuery.psort = pSortRaw;
+
+  /* Phone summary aggregates — totals-weighted */
   const phoneTotalBooked = phoneStats.reduce((s, r) => s + r.booked, 0);
   const phoneTotalShows = phoneStats.reduce((s, r) => s + r.shows, 0);
-  const phoneAvgSet = phoneStats.length > 0 ? Math.round(phoneStats.reduce((s, r) => s + r.setRate, 0) / phoneStats.length) : 0;
-  const phoneAvgShow = phoneStats.length > 0 ? Math.round(phoneStats.reduce((s, r) => s + r.showRate, 0) / phoneStats.length) : 0;
+  const phoneTotalQConvos = phoneStats.reduce((s, r) => s + r.qConvos, 0);
+  const phoneSetPct = pct(phoneTotalBooked, phoneTotalQConvos);
+  const phoneShowPct = pct(phoneTotalShows, phoneTotalBooked);
+  const phoneTotalRevenue = phoneStats.reduce((s, r) => s + r.revenue, 0);
+  const phoneTotalCash = phoneStats.reduce((s, r) => s + r.cash, 0);
 
-  /* DM summary aggregates */
+  /* DM summary aggregates — totals-weighted */
   const dmTotalBooked = dmStats.reduce((s, r) => s + r.booked, 0);
   const dmTotalLive = dmStats.reduce((s, r) => s + r.liveCalls, 0);
-  const dmAvgBook = dmStats.length > 0 ? Math.round(dmStats.reduce((s, r) => s + r.bookRate, 0) / dmStats.length) : 0;
-  const dmAvgShow = dmStats.length > 0 ? Math.round(dmStats.reduce((s, r) => s + r.showRate, 0) / dmStats.length) : 0;
+  const dmTotalConvos = dmStats.reduce((s, r) => s + r.convos, 0);
+  const dmBookPct = pct(dmTotalBooked, dmTotalConvos);
+  const dmShowPct = pct(dmTotalLive, dmTotalBooked);
+  const dmTotalRevenue = dmStats.reduce((s, r) => s + r.revenue, 0);
+  const dmTotalCash = dmStats.reduce((s, r) => s + r.cash, 0);
+
+  /* Combined aggregates */
+  const combinedBooked = phoneTotalBooked + dmTotalBooked;
+  const combinedShows = phoneTotalShows + dmTotalLive;
+  const combinedConvos = phoneTotalQConvos + dmTotalConvos;
+  const combinedSetPct = pct(combinedBooked, combinedConvos);
+  const combinedShowPct = pct(combinedShows, combinedBooked);
+  const combinedRevenue = phoneTotalRevenue + dmTotalRevenue;
+  const combinedCash = phoneTotalCash + dmTotalCash;
 
   /* Funnel totals */
   const phoneFunnelDials = phoneStats.reduce((s, r) => s + r.dials, 0);
   const phoneFunnelPickups = phoneStats.reduce((s, r) => s + r.pickups, 0);
-  const phoneFunnelQConvos = phoneStats.reduce((s, r) => s + r.qConvos, 0);
-  const dmFunnelConvos = dmStats.reduce((s, r) => s + r.convos, 0);
+  const phoneFunnelQConvos = phoneTotalQConvos;
+  const dmFunnelConvos = dmTotalConvos;
   const dmFunnelFollowUps = dmStats.reduce((s, r) => s + r.followUps, 0);
 
   return (
@@ -148,6 +198,9 @@ export default async function SetterKpisPage({
         {CHANNELS.map((c) => {
           const p = new URLSearchParams();
           if (params.period) p.set("period", params.period);
+          if (params.from) p.set("from", params.from);
+          if (params.to) p.set("to", params.to);
+          if (params.offerId) p.set("offerId", params.offerId);
           if (c.key !== "all") p.set("channel", c.key);
           const href = `/setter-kpis${p.toString() ? `?${p}` : ""}`;
           return (
@@ -165,6 +218,39 @@ export default async function SetterKpisPage({
           );
         })}
       </div>
+
+      {/* Combined hero tiles — only shown when channel === "all" */}
+      {channel === "all" && hasData && (
+        <Panel className="animate-stagger-1">
+          <h2 className="text-[13px] font-medium text-brand-textSecondary mb-4">Combined</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Total Calls Set</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{combinedBooked}</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Total Shows</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{combinedShows}</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Set/Book%</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{combinedSetPct}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Show%</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{combinedShowPct}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Revenue</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(combinedRevenue)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">Cash</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(combinedCash)}</div>
+            </div>
+          </div>
+        </Panel>
+      )}
 
       {/* Phone Setters */}
       {(channel === "all" || channel === "phone") && <Panel className="animate-stagger-2">
@@ -187,12 +273,12 @@ export default async function SetterKpisPage({
                 <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneTotalShows}</div>
               </div>
               <div>
-                <div className="text-xs text-brand-textFaint mb-1">Avg Set%</div>
-                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneAvgSet}%</div>
+                <div className="text-xs text-brand-textFaint mb-1">Set%</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneSetPct}%</div>
               </div>
               <div>
-                <div className="text-xs text-brand-textFaint mb-1">Avg Show%</div>
-                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneAvgShow}%</div>
+                <div className="text-xs text-brand-textFaint mb-1">Show%</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{phoneShowPct}%</div>
               </div>
             </div>
 
@@ -208,24 +294,27 @@ export default async function SetterKpisPage({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px]">
+              <table className="w-full min-w-[1100px]">
                 <thead>
                   <tr>
-                    <th scope="col" className={th}>Rep</th>
-                    <th scope="col" className={`${th} text-center`}>Hours</th>
-                    <th scope="col" className={`${th} text-center`}>Dials</th>
-                    <th scope="col" className={`${th} text-center`}>Pickups</th>
-                    <th scope="col" className={`${th} text-center`}>Q Convos</th>
-                    <th scope="col" className={`${th} text-center`}>Booked</th>
-                    <th scope="col" className={`${th} text-center`}>Shows</th>
-                    <th scope="col" className={`${th} text-right`}>Set%</th>
-                    <th scope="col" className={`${th} text-right`}>Show%</th>
-                    <th scope="col" className={`${th} text-right`}>D/Hr</th>
-                    <th scope="col" className={`${th} text-right`}>Revenue</th>
+                    <SortableTh label="Rep" field="name" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="left" />
+                    <SortableTh label="Hours" field="hours" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Dials" field="dials" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Pickups" field="pickups" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Q Convos" field="qConvos" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Booked" field="booked" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Shows" field="shows" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="center" />
+                    <SortableTh label="Set%" field="setRate" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Show%" field="showRate" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="D/Hr" field="dialsPerHour" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Dials/Bkd" field="dialsBkd" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Pickup%" field="pickupPct" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Convos/Hr" field="convosPerHr" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
+                    <SortableTh label="Revenue" field="revenue" sort={pSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {phoneStats.map((rep) => (
+                  {sortedPhone.map((rep) => (
                     <tr key={rep.name} className={trHover}>
                       <td className={`${td} font-medium text-brand-textSecondary`}>
                         {nameToRepId.get(rep.name) ? (
@@ -241,6 +330,9 @@ export default async function SetterKpisPage({
                       <td className={`${tdNum} text-right text-brand-textSecondary`}>{rep.setRate}%</td>
                       <td className={`${tdNum} text-right ${rep.showRate >= 70 ? "text-brand-positive" : "text-brand-textSecondary"}`}>{rep.showRate}%</td>
                       <td className={`${tdNum} text-right text-brand-textMuted`}>{rep.dialsPerHour}</td>
+                      <td className={`${tdNum} text-right text-brand-textMuted`}>{rep.dialsBkd !== null ? fmt1(rep.dialsBkd) : "—"}</td>
+                      <td className={`${tdNum} text-right text-brand-textMuted`}>{rep.dials > 0 ? `${rep.pickupPct}%` : "—"}</td>
+                      <td className={`${tdNum} text-right text-brand-textMuted`}>{rep.convosPerHr !== null ? fmt1(rep.convosPerHr) : "—"}</td>
                       <td className={`${tdNum} text-right text-brand-textPrimary`}>{fmtCurrency(rep.revenue)}</td>
                     </tr>
                   ))}
@@ -274,12 +366,12 @@ export default async function SetterKpisPage({
                 <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmTotalLive}</div>
               </div>
               <div>
-                <div className="text-xs text-brand-textFaint mb-1">Avg Book%</div>
-                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmAvgBook}%</div>
+                <div className="text-xs text-brand-textFaint mb-1">Book%</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmBookPct}%</div>
               </div>
               <div>
-                <div className="text-xs text-brand-textFaint mb-1">Avg Show%</div>
-                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmAvgShow}%</div>
+                <div className="text-xs text-brand-textFaint mb-1">Show%</div>
+                <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{dmShowPct}%</div>
               </div>
             </div>
 
@@ -297,19 +389,19 @@ export default async function SetterKpisPage({
               <table className="w-full min-w-[750px]">
                 <thead>
                   <tr>
-                    <th scope="col" className={th}>Rep</th>
-                    <th scope="col" className={`${th} text-center`}>Convos</th>
-                    <th scope="col" className={`${th} text-center`}>Follow Ups</th>
-                    <th scope="col" className={`${th} text-center`}>Booked</th>
-                    <th scope="col" className={`${th} text-center`}>Live Calls</th>
-                    <th scope="col" className={`${th} text-center`}>Sets Closed</th>
-                    <th scope="col" className={`${th} text-right`}>Book%</th>
-                    <th scope="col" className={`${th} text-right`}>Show%</th>
-                    <th scope="col" className={`${th} text-right`}>Revenue</th>
+                    <SortableTh label="Rep" field="name" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="left" />
+                    <SortableTh label="Convos" field="convos" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Follow Ups" field="followUps" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Booked" field="booked" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Live Calls" field="liveCalls" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Sets Closed" field="setsClosed" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="center" />
+                    <SortableTh label="Book%" field="bookRate" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
+                    <SortableTh label="Show%" field="showRate" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
+                    <SortableTh label="Revenue" field="revenue" sort={dSortRaw ?? "-booked"} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="right" />
                   </tr>
                 </thead>
                 <tbody>
-                  {dmStats.map((rep) => (
+                  {sortedDm.map((rep) => (
                     <tr key={rep.name} className={trHover}>
                       <td className={`${td} font-medium text-brand-textSecondary`}>
                         {nameToRepId.get(rep.name) ? (

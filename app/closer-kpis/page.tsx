@@ -8,11 +8,14 @@ import { getSessionUser } from "@/lib/session";
 import type { CloserRecord } from "@/lib/sheet-sync";
 import { fmtCurrency } from "@/lib/formatters";
 import { th, td, tdNum, trHover } from "@/lib/table-styles";
+import { parseSort, sortRows } from "@/lib/sort";
 import { Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { FunnelBar } from "@/components/ui/funnel-bar";
 import { ObjectionPanel } from "@/components/ui/objection-panel";
+import { SortableTh } from "@/components/ui/sortable-th";
+import { TrendChart } from "@/components/charts/trend-chart";
 
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
@@ -67,6 +70,7 @@ function buildCloserStats(records: CloserRecord[], aliasMap: Map<string, string>
       cash: v.cash,
       mrr: v.mrr,
       avgRating: v.ratings.length > 0 ? Math.round((v.ratings.reduce((a, b) => a + b, 0) / v.ratings.length) * 10) / 10 : 0,
+      ratingCount: v.ratings.length,
       topObjection: mostCommon(v.objections),
       showRate: pct(v.liveCalls, v.totalCalls),
       bookedToClose: pct(v.dealsClosed, v.totalCalls),
@@ -79,13 +83,13 @@ function buildCloserStats(records: CloserRecord[], aliasMap: Map<string, string>
 }
 
 function mostCommon(arr: string[]): string {
-  if (arr.length === 0) return "\u2014";
+  if (arr.length === 0) return "—";
   const counts = new Map<string, number>();
   for (const s of arr) {
     if (!s || s === ".") continue;
     counts.set(s, (counts.get(s) ?? 0) + 1);
   }
-  if (counts.size === 0) return "\u2014";
+  if (counts.size === 0) return "—";
   let best = "";
   let max = 0;
   counts.forEach((v, k) => {
@@ -94,12 +98,17 @@ function mostCommon(arr: string[]): string {
   return best;
 }
 
+const SORTABLE_FIELDS = [
+  "name", "cash", "mrr", "dealsClosed", "totalCalls", "liveCalls",
+  "noShows", "showRate", "bookedToClose", "avgDeal", "cashPerCall", "avgRating",
+];
+
 export default async function CloserKpisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; offerId?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string; offerId?: string; sort?: string }>;
 }) {
-  let params: { period?: string; offerId?: string };
+  let params: { period?: string; from?: string; to?: string; offerId?: string; sort?: string };
   let stats: ReturnType<typeof buildCloserStats> = [];
   let filtered: CloserRecord[] = [];
   let nameToRepId = new Map<string, string>();
@@ -109,7 +118,9 @@ export default async function CloserKpisPage({
     const [records, aliasMap, ntrId, settings, sessionUser] = await Promise.all([readAllRecords(params.offerId || undefined), buildAliasMap(), buildNameToRepIdMap(), readSettings(), getSessionUser()]);
     nameToRepId = ntrId;
     const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
-    const range = resolvePeriod(period, null, null, new Date());
+    const from = params.from ?? null;
+    const to = params.to ?? null;
+    const range = resolvePeriod(period, from, to, new Date());
     filtered = records.closer.filter((r) => inRange(r.date, range.from, range.to));
     const allStats = buildCloserStats(filtered, aliasMap);
 
@@ -130,6 +141,18 @@ export default async function CloserKpisPage({
     );
   }
 
+  // Sort the table rows
+  const { field: sortField, dir: sortDir } = parseSort(params!.sort, SORTABLE_FIELDS, "-cash");
+  const sortedStats = sortRows(stats, sortField, sortDir);
+  const currentSort = `${sortDir === -1 ? "-" : ""}${sortField}`;
+
+  // Base query object for sort links (preserve other params)
+  const baseQuery: Record<string, string> = {};
+  if (params!.period) baseQuery.period = params!.period;
+  if (params!.from) baseQuery.from = params!.from;
+  if (params!.to) baseQuery.to = params!.to;
+  if (params!.offerId) baseQuery.offerId = params!.offerId;
+
   const totalCash = stats.reduce((s, r) => s + r.cash, 0);
   const totalRevenue = stats.reduce((s, r) => s + r.revenue, 0);
   const totalDeals = stats.reduce((s, r) => s + r.dealsClosed, 0);
@@ -140,6 +163,35 @@ export default async function CloserKpisPage({
   const funnelLive = stats.reduce((s, r) => s + r.liveCalls, 0);
   const funnelOffers = stats.reduce((s, r) => s + r.offers, 0);
   const funnelClosed = totalDeals;
+
+  // Rating panel: closers with at least one rated record
+  const ratedClosers = stats.filter((r) => r.ratingCount > 0);
+
+  // Trend chart: cumulative cash + close rate per day
+  const dayMap = new Map<string, { cash: number; deals: number; calls: number }>();
+  for (const r of filtered) {
+    if (!r.date) continue;
+    const cur = dayMap.get(r.date) ?? { cash: 0, deals: 0, calls: 0 };
+    cur.cash += r.cash;
+    cur.deals += r.dealsClosed;
+    cur.calls += r.totalCalls;
+    dayMap.set(r.date, cur);
+  }
+  const sortedDays = Array.from(dayMap.keys()).sort();
+  let cumCash = 0;
+  let cumDeals = 0;
+  let cumCalls = 0;
+  const trendData = sortedDays.map((day) => {
+    const d = dayMap.get(day)!;
+    cumCash += d.cash;
+    cumDeals += d.deals;
+    cumCalls += d.calls;
+    return {
+      day,
+      cash: cumCash,
+      closeRate: cumCalls > 0 ? Math.round((cumDeals / cumCalls) * 1000) / 10 : 0,
+    };
+  });
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
@@ -189,27 +241,34 @@ export default async function CloserKpisPage({
             ]} />
           </Panel>
 
+          {trendData.length >= 2 && (
+            <Panel className="animate-stagger-4">
+              <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">Cumulative Trend</h3>
+              <TrendChart data={trendData} />
+            </Panel>
+          )}
+
           <Panel className="animate-stagger-4 overflow-x-auto">
             <table className="w-full min-w-[1100px]">
               <thead>
                 <tr>
-                  <th scope="col" className={th}>Rep</th>
-                  <th scope="col" className={`${th} text-right`}>Cash</th>
-                  <th scope="col" className={`${th} text-right`}>MRR</th>
-                  <th scope="col" className={`${th} text-center`}>Deals</th>
-                  <th scope="col" className={`${th} text-center`}>Calls</th>
-                  <th scope="col" className={`${th} text-center`}>Shows</th>
-                  <th scope="col" className={`${th} text-center`}>No-Shows</th>
-                  <th scope="col" className={`${th} text-right`}>Show%</th>
-                  <th scope="col" className={`${th} text-right`}>Close%</th>
-                  <th scope="col" className={`${th} text-right`}>Avg Deal</th>
-                  <th scope="col" className={`${th} text-right`}>$/Call</th>
-                  <th scope="col" className={`${th} text-center`}>Rating</th>
+                  <SortableTh label="Rep" field="name" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="left" />
+                  <SortableTh label="Cash" field="cash" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="right" />
+                  <SortableTh label="MRR" field="mrr" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="right" />
+                  <SortableTh label="Deals" field="dealsClosed" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="center" />
+                  <SortableTh label="Calls" field="totalCalls" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="center" />
+                  <SortableTh label="Shows" field="liveCalls" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="center" />
+                  <SortableTh label="No-Shows" field="noShows" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="center" />
+                  <SortableTh label="Show%" field="showRate" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="right" />
+                  <SortableTh label="Close%" field="bookedToClose" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="right" />
+                  <SortableTh label="Avg Deal" field="avgDeal" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="right" />
+                  <SortableTh label="$/Call" field="cashPerCall" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="right" />
+                  <SortableTh label="Rating" field="avgRating" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="center" />
                   <th scope="col" className={th}>Top Objection</th>
                 </tr>
               </thead>
               <tbody>
-                {stats.map((rep) => (
+                {sortedStats.map((rep) => (
                   <tr key={rep.name} className={trHover}>
                     <td className={`${td} font-medium text-brand-textSecondary`}>
                       {nameToRepId.get(rep.name) ? (
@@ -226,13 +285,47 @@ export default async function CloserKpisPage({
                     <td className={`${tdNum} text-right ${rep.bookedToClose >= 20 ? "text-brand-positive" : "text-brand-textSecondary"}`}>{rep.bookedToClose}%</td>
                     <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtCurrency(rep.avgDeal)}</td>
                     <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtCurrency(rep.cashPerCall)}</td>
-                    <td className={`${tdNum} text-center ${rep.avgRating >= 7 ? "text-brand-positive" : rep.avgRating >= 5 ? "text-brand-textSecondary" : "text-brand-negative"}`}>{rep.avgRating || "\u2014"}</td>
+                    <td className={`${tdNum} text-center ${rep.avgRating >= 7 ? "text-brand-positive" : rep.avgRating >= 5 ? "text-brand-textSecondary" : "text-brand-negative"}`}>{rep.avgRating || "—"}</td>
                     <td className={`${td} text-brand-textMuted text-xs max-w-[150px] truncate`} title={rep.topObjection}>{rep.topObjection}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </Panel>
+
+          {ratedClosers.length > 0 && (
+            <Panel>
+              <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-4">Self-Rating vs Performance</h3>
+              <div className="flex flex-col gap-3">
+                {ratedClosers.map((rep) => {
+                  const mismatchHigh = rep.avgRating >= 7 && rep.bookedToClose < 20;
+                  const mismatchLow = rep.avgRating <= 4 && rep.bookedToClose >= 30;
+                  return (
+                    <div key={rep.name} className="flex items-center gap-4">
+                      <div className="w-28 shrink-0 text-[13px] text-brand-textSecondary truncate">{rep.name}</div>
+                      <div className="flex-1 flex items-center gap-2 min-w-0">
+                        <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-brand-accent"
+                            style={{ width: `${Math.min(rep.avgRating / 10 * 100, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[12px] tabular-nums text-brand-textMuted w-10 shrink-0">{rep.avgRating}/10</span>
+                      </div>
+                      <div className="w-16 shrink-0 text-right text-[13px] tabular-nums text-brand-textSecondary">{rep.bookedToClose}%</div>
+                      {mismatchHigh ? (
+                        <span className="w-[152px] shrink-0 text-right text-[11px] text-brand-negative">self-rating above results</span>
+                      ) : mismatchLow ? (
+                        <span className="w-[152px] shrink-0 text-right text-[11px] text-brand-positive">outperforming self-rating</span>
+                      ) : (
+                        <span className="w-[152px] shrink-0" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Panel>
+          )}
 
           <ObjectionPanel entries={filtered} />
         </>

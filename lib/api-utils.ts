@@ -209,6 +209,7 @@ export const createRepSchema = z.object({
   aliases: z.array(z.string()).default([]),
   roles: z.array(z.enum(["closer", "phone", "dm"])).default([]),
   targets: z.record(z.string(), z.number()).default({}),
+  commissionRate: z.number().min(0).max(100).nullable().optional(),
 });
 
 export const updateRepSchema = z.object({
@@ -217,6 +218,7 @@ export const updateRepSchema = z.object({
   roles: z.array(z.enum(["closer", "phone", "dm"])).optional(),
   status: z.enum(["active", "archived"]).optional(),
   targets: z.record(z.string(), z.number()).optional(),
+  commissionRate: z.number().min(0).max(100).nullable().optional(),
 });
 
 export type RepRow = {
@@ -226,6 +228,7 @@ export type RepRow = {
   roles: string[];
   status: string;
   targets: Record<string, number>;
+  commissionRate: number | null;
   createdAt: string;
 };
 
@@ -236,6 +239,7 @@ function toRepRow(r: {
   roles: string[];
   status: string;
   targets: unknown;
+  commissionRate: number | null;
   createdAt: Date;
 }): RepRow {
   return {
@@ -245,6 +249,7 @@ function toRepRow(r: {
     roles: r.roles,
     status: r.status,
     targets: (r.targets ?? {}) as Record<string, number>,
+    commissionRate: r.commissionRate,
     createdAt: r.createdAt.toISOString(),
   };
 }

@@ -63,19 +63,23 @@ model Record {
 }
 
 model Rep {
-  id          String   @id @default(cuid())
-  displayName String
-  aliases     String[]
-  roles       String[] // "closer" | "phone" | "dm"
-  status      String   @default("active")
-  targets     Json     @default("{}")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  displayName    String
+  aliases        String[]
+  roles          String[] // "closer" | "phone" | "dm"
+  status         String   @default("active")
+  targets        Json     @default("{}")
+  commissionRate Float? // null = use global commission rate
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Settings {
-  id             String   @id @default("default")
-  commissionRate Float    @default(0)
-  defaultPeriod  String   @default("last-month")
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default("default")
+  commissionRate     Float    @default(0)
+  defaultPeriod      String   @default("last-month")
+  autoSyncMode       String   @default("daily")
+  defaultLandingPage String   @default("/dashboard")
+  leaderboardRows    Int      @default(5)
+  updatedAt          DateTime @updatedAt
 }

@@ -41,6 +41,7 @@ export interface SetterRep {
   rank: number;
   callsSet: number;
   revenueGenerated: number;
+  showRate: number;
 }
 
 export interface Offer {
