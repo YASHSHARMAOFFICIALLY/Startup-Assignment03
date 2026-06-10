@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { resolvePeriod, type PeriodKey } from "@/lib/period";
 import { readAllRecords } from "@/lib/api-utils";
 import { readSettings } from "@/lib/settings";
+import { fmtCurrency } from "@/lib/formatters";
 import { Panel } from "@/components/ui/panel";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -10,24 +11,25 @@ import { EmptyState } from "@/components/ui/empty-state";
 const pct = (a: number, b: number) =>
   b > 0 ? Math.round((a / b) * 100) : 0;
 
-/* ─── Stage colors ─────────────────────────────────────────────── */
+/* ─── Stage colors — gold ramp into brand-positive (Won) ─────────── */
 
 const STAGE_COLORS = [
-  { dot: "bg-blue-400", bar: "bg-blue-400/80", text: "text-blue-400" },
-  { dot: "bg-sky-400", bar: "bg-sky-400/80", text: "text-sky-400" },
-  { dot: "bg-emerald-400", bar: "bg-emerald-400/80", text: "text-emerald-400" },
-  { dot: "bg-amber-400", bar: "bg-amber-400/80", text: "text-amber-400" },
-  { dot: "bg-brand-positive", bar: "bg-brand-positive/80", text: "text-brand-positive" },
+  { dot: "bg-amber-700" },
+  { dot: "bg-amber-600" },
+  { dot: "bg-brand-accent" },
+  { dot: "bg-amber-400" },
+  { dot: "bg-brand-positive" },
 ];
 
 /* ─── Funnel chart (segmented trapezoid) ─────────────────────────── */
 
+// Gold ramp matching the brand accent (#F59E0B); final stage = brand-positive
 const SEGMENT_FILLS = [
-  { top: "#3b82f6", bot: "#2563eb" },   // blue
-  { top: "#0ea5e9", bot: "#0284c7" },   // sky
-  { top: "#10b981", bot: "#059669" },   // emerald
-  { top: "#f59e0b", bot: "#d97706" },   // amber
-  { top: "#22c55e", bot: "#16a34a" },   // green
+  { top: "#B45309", bot: "#92400E" },   // amber-700
+  { top: "#D97706", bot: "#B45309" },   // amber-600
+  { top: "#F59E0B", bot: "#D97706" },   // brand accent
+  { top: "#FBBF24", bot: "#F59E0B" },   // amber-400
+  { top: "#22C55E", bot: "#16A34A" },   // brand positive (Won)
 ];
 
 function FunnelChart({ stages }: { stages: { label: string; value: number }[] }) {
@@ -110,7 +112,7 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
               y={midY + maxHalf + 22}
               textAnchor="middle"
               fontSize="11"
-              fill="#888"
+              fill="#8B8B95"
             >
               {b.label}
             </text>
@@ -119,7 +121,7 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
 
         {/* Conversion pills — one per stage */}
         {convRates.map((cr, i) => {
-          const color = i === 0 ? "#60a5fa" : cr.rate >= 50 ? "#34d399" : cr.rate >= 20 ? "#fbbf24" : "#f87171";
+          const color = i === 0 ? "#A1A1AA" : cr.rate >= 50 ? "#22C55E" : cr.rate >= 20 ? "#F59E0B" : "#EF4444";
           return (
             <g key={i}>
               <rect
@@ -128,9 +130,9 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
                 width="44"
                 height="22"
                 rx="11"
-                fill="#111"
-                stroke="#333"
-                strokeWidth="0.5"
+                fill="#141517"
+                stroke="#26272B"
+                strokeWidth="1"
               />
               <text
                 x={cr.x}
@@ -154,12 +156,10 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
 /* ─── Stage card ─────────────────────────────────────────────── */
 
 function StageCard({
-  icon,
   label,
   value,
   colorIdx,
 }: {
-  icon: string;
   label: string;
   value: number;
   colorIdx: number;
@@ -169,9 +169,9 @@ function StageCard({
     <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg px-4 py-3 flex flex-col items-center gap-1.5 min-w-0">
       <div className="flex items-center gap-1.5">
         <div className={`w-2 h-2 rounded-full ${color.dot}`} />
-        <span className="text-[11px] text-brand-textFaint">{icon} {label}</span>
+        <span className="text-[11px] text-brand-textFaint">{label}</span>
       </div>
-      <div className={`text-xl font-semibold tabular-nums ${color.text}`}>
+      <div className="text-xl font-semibold tabular-nums text-brand-textPrimary">
         {value.toLocaleString()}
       </div>
     </div>
@@ -209,6 +209,7 @@ export default async function FunnelPage({
   let period: PeriodKey;
   let fromStr: string | null = null;
   let toStr: string | null = null;
+  let commissionRate = 0;
 
   try {
     const params = await searchParams;
@@ -220,11 +221,12 @@ export default async function FunnelPage({
     period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
     fromStr = params.from || null;
     toStr = params.to || null;
+    commissionRate = settings.commissionRate;
   } catch (e) {
     console.error("[SalesIO] Funnel failed:", e);
     return (
       <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
-        <PageHeader title="Default Funnel" subtitle="Full pipeline visualization." />
+        <PageHeader title="Funnel" subtitle="Lead lifecycle from first touch to close." />
         <EmptyState title="Failed to load" description="Could not load funnel data. Please try refreshing." />
       </div>
     );
@@ -238,7 +240,7 @@ export default async function FunnelPage({
   if (!hasData) {
     return (
       <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
-        <PageHeader title="Default Funnel" subtitle="Full pipeline visualization." />
+        <PageHeader title="Funnel" subtitle="Lead lifecycle from first touch to close." />
         <EmptyState title="No data" description="Sync an offer to see the funnel." />
       </div>
     );
@@ -283,53 +285,49 @@ export default async function FunnelPage({
   const totalRevenue = closer.reduce((s, r) => s + r.revenue, 0);
   const totalCash = closer.reduce((s, r) => s + r.cash, 0);
   const cashToCollect = totalRevenue - totalCash;
+  const commissionsPaid = Math.round(totalCash * (commissionRate / 100));
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 pt-4 sm:pt-6 flex flex-col gap-6">
       <PageHeader
-        title="Default Funnel"
-        subtitle="Full pipeline visualization."
+        title="Funnel"
+        subtitle="Lead lifecycle from first touch to close."
       />
 
-      {/* Top KPI cards — matches client layout */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 animate-stagger-1">
-        <Panel className="!py-4">
-          <div className="text-xs text-brand-textFaint mb-1">Total revenue</div>
-          <div className="text-xl font-semibold text-brand-textPrimary tabular-nums">${totalRevenue.toLocaleString()}</div>
-        </Panel>
-        <Panel className="!py-4">
-          <div className="text-xs text-brand-textFaint mb-1">Cash collected</div>
-          <div className="text-xl font-semibold text-brand-textPrimary tabular-nums">${totalCash.toLocaleString()}</div>
-        </Panel>
-        <Panel className="!py-4">
-          <div className="text-xs text-brand-textFaint mb-1">Cash to be collected</div>
-          <div className="text-xl font-semibold text-brand-textPrimary tabular-nums">${cashToCollect.toLocaleString()}</div>
-        </Panel>
-        <Panel className="!py-4">
-          <div className="text-xs text-brand-textFaint mb-1">Compared to prev month</div>
-          <div className="text-xl font-semibold text-brand-textPrimary tabular-nums">
-            {pct(won, newLeads)}%
-          </div>
-        </Panel>
-      </div>
-
-      {/* Funnel label */}
-      <div className="flex items-center gap-2 text-sm text-brand-textMuted">
-        <span>↓</span>
-        <span className="font-medium">Default Funnel</span>
+      {/* Hero KPI row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 animate-stagger-1">
+        <div>
+          <div className="text-xs text-brand-textFaint mb-1">Total Revenue</div>
+          <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalRevenue)}</div>
+        </div>
+        <div>
+          <div className="text-xs text-brand-textFaint mb-1">Cash Collected</div>
+          <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalCash)}</div>
+        </div>
+        <div>
+          <div className="text-xs text-brand-textFaint mb-1">Cash To Collect</div>
+          <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(cashToCollect)}</div>
+        </div>
+        <div>
+          <div className="text-xs text-brand-textFaint mb-1">Lead → Won</div>
+          <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{pct(won, newLeads)}%</div>
+        </div>
       </div>
 
       {/* Stage cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 animate-stagger-2">
-        <StageCard icon="✨" label="New" value={newLeads} colorIdx={0} />
-        <StageCard icon="📞" label="In contact" value={inContact} colorIdx={1} />
-        <StageCard icon="🟢" label="Qualified" value={qualified} colorIdx={2} />
-        <StageCard icon="📅" label="Booked call" value={bookedCall} colorIdx={3} />
-        <StageCard icon="🏆" label="Won" value={won} colorIdx={4} />
+        <StageCard label="New" value={newLeads} colorIdx={0} />
+        <StageCard label="In contact" value={inContact} colorIdx={1} />
+        <StageCard label="Qualified" value={qualified} colorIdx={2} />
+        <StageCard label="Booked call" value={bookedCall} colorIdx={3} />
+        <StageCard label="Won" value={won} colorIdx={4} />
       </div>
 
       {/* Funnel chart */}
       <Panel className="animate-stagger-3">
+        <div className="text-xs font-medium tracking-wider uppercase text-brand-textFaint mb-3">
+          Pipeline Stages
+        </div>
         <FunnelChart stages={stages} />
       </Panel>
 
@@ -378,6 +376,12 @@ export default async function FunnelPage({
             {leakPct !== null ? ` (${leakPct}% leak)` : ""}.
           </p>
         )}
+        {setterShows > 0 && closerCalls > setterShows && (
+          <p className="mt-3 text-xs text-brand-textMuted">
+            Closer calendar exceeds tracked setter shows by {(closerCalls - setterShows).toLocaleString()} —
+            likely inbound or untracked booking sources.
+          </p>
+        )}
         <p className="mt-1.5 text-[11px] text-brand-textFaint">
           Where booked calls leak before the closer dials.
         </p>
@@ -385,28 +389,32 @@ export default async function FunnelPage({
 
       {/* Bottom counters */}
       <div className="flex flex-wrap gap-6 px-1 animate-stagger-5">
-        <BottomStat dot="bg-red-400" label="No shows" value={noShows} />
-        <BottomStat dot="bg-emerald-400" label="Deposits" value={deposits} />
-        <BottomStat dot="bg-amber-400" label="Cancellations" value={cancellations} />
+        <BottomStat dot="bg-brand-negative" label="No shows" value={noShows} />
+        <BottomStat dot="bg-brand-positive" label="Deposits" value={deposits} />
+        <BottomStat dot="bg-brand-accent" label="Cancellations" value={cancellations} />
       </div>
 
       {/* Payments & Collections */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-stagger-5">
         <Panel>
-          <div className="text-xs text-brand-textFaint mb-3">Upcoming Payments</div>
+          <div className="text-xs font-medium tracking-wider uppercase text-brand-textFaint mb-3">
+            Upcoming Payments
+          </div>
           <div className="text-xs text-brand-textFaint mb-1">Total Pending</div>
-          <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">${cashToCollect.toLocaleString()}</div>
+          <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(cashToCollect)}</div>
         </Panel>
         <Panel>
-          <div className="text-xs text-brand-textFaint mb-3">Recent Collections</div>
+          <div className="text-xs font-medium tracking-wider uppercase text-brand-textFaint mb-3">
+            Recent Collections
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Cash Collected</div>
-              <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">${totalCash.toLocaleString()}</div>
+              <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalCash)}</div>
             </div>
             <div>
-              <div className="text-xs text-brand-textFaint mb-1">Commission</div>
-              <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">$0</div>
+              <div className="text-xs text-brand-textFaint mb-1">Commissions ({commissionRate}%)</div>
+              <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(commissionsPaid)}</div>
             </div>
           </div>
         </Panel>
