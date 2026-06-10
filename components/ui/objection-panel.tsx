@@ -16,10 +16,11 @@ function countObjections(entries: Entry[]): { text: string; count: number }[] {
     .slice(0, 8);
 }
 
+// Latest 3 only — full reflection history was too noisy to scan
 function collectReflections(entries: Entry[]): { name: string; didWell: string; improve: string }[] {
   return entries
     .filter((e) => (e.didWell.trim() && e.didWell !== ".") || (e.improve.trim() && e.improve !== "."))
-    .slice(-12)
+    .slice(-3)
     .reverse();
 }
 
@@ -44,9 +45,9 @@ export function ObjectionPanel({ entries, title }: { entries: Entry[]; title?: s
                   <span className="text-[12px] text-brand-textSecondary truncate mr-3 capitalize">{o.text}</span>
                   <span className="text-[10px] text-brand-textFaint tabular-nums shrink-0">{o.count}</span>
                 </div>
-                <div className="h-px bg-white/[0.04] overflow-hidden">
+                <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
                   <div
-                    className="h-full bg-white/[0.12]"
+                    className="h-full rounded-full bg-white/[0.2]"
                     style={{ width: `${(o.count / maxCount) * 100}%` }}
                   />
                 </div>
@@ -63,7 +64,7 @@ export function ObjectionPanel({ entries, title }: { entries: Entry[]; title?: s
           </h3>
           <div className="space-y-3 max-h-[320px] overflow-y-auto">
             {reflections.map((r, i) => (
-              <div key={i} className="border-b border-white/[0.03] pb-2.5 last:border-0 last:pb-0">
+              <div key={i} className="border-b border-white/[0.08] pb-2.5 last:border-0 last:pb-0">
                 <div className="text-[10px] text-brand-textFaint mb-1">{r.name}</div>
                 {r.didWell && r.didWell !== "." && (
                   <div className="text-[11px] text-brand-textMuted mb-0.5">

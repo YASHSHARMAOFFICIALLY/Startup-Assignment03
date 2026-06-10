@@ -120,6 +120,8 @@ export default async function DashboardPage({
         <MetricCards data={data} />
       </div>
 
+      <KpiPanels closerKPIs={closerKPIs} setterKPIs={setterKPIs} />
+
       <Panel className="animate-stagger-4">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-2">
@@ -203,8 +205,6 @@ export default async function DashboardPage({
           </div>
         </div>
       </Panel>
-
-      <KpiPanels closerKPIs={closerKPIs} setterKPIs={setterKPIs} />
     </div>
   );
 }

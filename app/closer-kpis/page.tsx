@@ -153,7 +153,6 @@ export default async function CloserKpisPage({
   if (params!.to) baseQuery.to = params!.to;
   if (params!.offerId) baseQuery.offerId = params!.offerId;
 
-  const totalCash = stats.reduce((s, r) => s + r.cash, 0);
   const totalRevenue = stats.reduce((s, r) => s + r.revenue, 0);
   const totalDeals = stats.reduce((s, r) => s + r.dealsClosed, 0);
   const totalDeposits = stats.reduce((s, r) => s + r.deposits, 0);
@@ -210,14 +209,14 @@ export default async function CloserKpisPage({
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-4 animate-stagger-2">
-            <div>
-              <div className="text-xs text-brand-textFaint mb-1">Total Cash</div>
-              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalCash)}</div>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 animate-stagger-2">
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Revenue</div>
               <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalRevenue)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-brand-textFaint mb-1">MRR</div>
+              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalMrr)}</div>
             </div>
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Deals</div>
@@ -226,10 +225,6 @@ export default async function CloserKpisPage({
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Deposits</div>
               <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{totalDeposits}</div>
-            </div>
-            <div>
-              <div className="text-xs text-brand-textFaint mb-1">MRR</div>
-              <div className="text-lg font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(totalMrr)}</div>
             </div>
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Show%</div>

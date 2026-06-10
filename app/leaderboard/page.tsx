@@ -31,6 +31,20 @@ const SETTER_SORTS: { key: SetterSortKey; label: string }[] = [
   { key: "showRate", label: "Show Rate" },
 ];
 
+// Selected metric drives both sort AND the single value column shown (declutter filter)
+const CLOSER_COLS: Record<CloserSortKey, { label: string; render: (r: CloserRep) => string }> = {
+  cash: { label: "Cash Collected", render: (r) => fmtCurrency(r.cashCollected) },
+  deals: { label: "Deals", render: (r) => r.dealsClosed.toLocaleString() },
+  closeRate: { label: "Close%", render: (r) => fmtPercentOrDash(r.bookedToClose) },
+  avgDeal: { label: "Avg Deal", render: (r) => fmtCurrencyOrDash(r.avgDealValue) },
+};
+
+const SETTER_COLS: Record<SetterSortKey, { label: string; render: (r: SetterRep) => string }> = {
+  callsSet: { label: "Calls Set", render: (r) => r.callsSet.toLocaleString() },
+  revenue: { label: "Revenue", render: (r) => fmtCurrency(r.revenueGenerated) },
+  showRate: { label: "Show Rate", render: (r) => fmtPercentOrDash(r.showRate) },
+};
+
 function sortClosers(reps: CloserRep[], by: CloserSortKey): CloserRep[] {
   const sorted = [...reps].sort((a, b) => {
     if (by === "cash") return b.cashCollected - a.cashCollected;
@@ -466,6 +480,9 @@ export default async function LeaderboardPage({
     );
   }
 
+  const closerMetricCol = CLOSER_COLS[closerSort];
+  const setterMetricCol = SETTER_COLS[setterSort];
+
   const priorCloserMap = rankChangeMap(priorClosers);
   const priorSetterMap = rankChangeMap(priorSetters);
   const closerMostImproved = mostImproved(closers, priorCloserMap);
@@ -540,10 +557,7 @@ export default async function LeaderboardPage({
                     <tr>
                       <th scope="col" className={th}>#</th>
                       <th scope="col" className={th}>Rep</th>
-                      <th scope="col" className={`${th} text-right`}>Cash Collected</th>
-                      <th scope="col" className={`${th} text-center`}>Deals</th>
-                      <th scope="col" className={`${th} text-right`}>Close%</th>
-                      <th scope="col" className={`${th} text-right`}>Avg Deal</th>
+                      <th scope="col" className={`${th} text-right`}>{closerMetricCol.label}</th>
                       <th scope="col" className={`${th} text-center`}>Trend</th>
                     </tr>
                   </thead>
@@ -564,10 +578,7 @@ export default async function LeaderboardPage({
                             <Link href={`/rep-management/${nameToRepId.get(rep.name)}`} className="hover:text-brand-accent transition-colors">{rep.name}</Link>
                           ) : rep.name}
                         </td>
-                        <td className={`${tdNum} text-right text-brand-textPrimary`}>{fmtCurrency(rep.cashCollected)}</td>
-                        <td className={`${tdNum} text-center text-brand-textSecondary`}>{rep.dealsClosed}</td>
-                        <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtPercentOrDash(rep.bookedToClose)}</td>
-                        <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtCurrencyOrDash(rep.avgDealValue)}</td>
+                        <td className={`${tdNum} text-right text-brand-textPrimary`}>{closerMetricCol.render(rep)}</td>
                         <td className={`${td} text-center`}>
                           <RankChange current={rep} priorMap={priorCloserMap} />
                         </td>
@@ -619,9 +630,7 @@ export default async function LeaderboardPage({
                       <th scope="col" className={th}>#</th>
                       <th scope="col" className={`${th} text-center`}>Trend</th>
                       <th scope="col" className={th}>Rep</th>
-                      <th scope="col" className={`${th} text-center`}>Calls Set</th>
-                      <th scope="col" className={`${th} text-right`}>Revenue</th>
-                      <th scope="col" className={`${th} text-right`}>Show Rate</th>
+                      <th scope="col" className={`${th} text-right`}>{setterMetricCol.label}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -644,9 +653,7 @@ export default async function LeaderboardPage({
                             <Link href={`/rep-management/${nameToRepId.get(rep.name)}`} className="hover:text-brand-accent transition-colors">{rep.name}</Link>
                           ) : rep.name}
                         </td>
-                        <td className={`${tdNum} text-center text-brand-textPrimary`}>{rep.callsSet}</td>
-                        <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtCurrency(rep.revenueGenerated)}</td>
-                        <td className={`${tdNum} text-right text-brand-textSecondary`}>{fmtPercentOrDash(rep.showRate)}</td>
+                        <td className={`${tdNum} text-right text-brand-textPrimary`}>{setterMetricCol.render(rep)}</td>
                       </tr>
                     ))}
                   </tbody>

@@ -10,7 +10,7 @@ export function Panel({
   return (
     <div
       className={cn(
-        "bg-white/[0.02] rounded-xl p-5",
+        "bg-gradient-to-b from-white/[0.04] to-white/[0.01] rounded-xl p-5",
         className,
       )}
     >
