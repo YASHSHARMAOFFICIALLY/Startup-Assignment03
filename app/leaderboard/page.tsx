@@ -31,6 +31,13 @@ const SETTER_SORTS: { key: SetterSortKey; label: string }[] = [
   { key: "showRate", label: "Show Rate" },
 ];
 
+type PhoneMetricKey = "dials" | "booked";
+
+const PHONE_METRICS: { key: PhoneMetricKey; label: string }[] = [
+  { key: "dials", label: "Dials" },
+  { key: "booked", label: "Calls Booked" },
+];
+
 // Selected metric drives both sort AND the single value column shown (declutter filter)
 const CLOSER_COLS: Record<CloserSortKey, { label: string; render: (r: CloserRep) => string }> = {
   cash: { label: "Cash Collected", render: (r) => fmtCurrency(r.cashCollected) },
@@ -228,9 +235,13 @@ function SetterRankCard({
 function SetterCardLeaderboard({
   phoneStats,
   periodLabel,
+  metric,
+  searchParams,
 }: {
   phoneStats: SetterPhoneStats[];
   periodLabel: string;
+  metric: PhoneMetricKey;
+  searchParams: Record<string, string | undefined>;
 }) {
   const byDials = [...phoneStats].sort((a, b) => b.dials - a.dials).slice(0, 5);
   const byBooked = [...phoneStats].sort((a, b) => b.booked - a.booked).slice(0, 5);
@@ -238,50 +249,52 @@ function SetterCardLeaderboard({
   const maxBooked = byBooked[0]?.booked ?? 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       <div className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">
         Phone Activity — {periodLabel}
       </div>
 
-      {/* Dials section */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-3">
-          <span className="text-sm">🏆</span>
-          <span className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">Dials</span>
-        </div>
-        <div className="space-y-1.5">
-          {byDials.map((rep, i) => (
-            <SetterRankCard
-              key={rep.name}
-              rank={i + 1}
-              name={rep.name}
-              value={rep.dials}
-              secondary={`${rep.dialsPerHour} / hr`}
-              maxValue={maxDials}
-            />
-          ))}
-        </div>
-      </div>
+      <MetricToggle options={PHONE_METRICS} active={metric} paramName="phoneMetric" searchParams={searchParams} />
 
-      {/* Calls Booked section */}
-      <div>
-        <div className="flex items-center gap-1.5 mb-3">
-          <span className="text-sm">📅</span>
-          <span className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">Calls Booked</span>
+      {metric === "dials" ? (
+        <div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-sm">🏆</span>
+            <span className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">Dials</span>
+          </div>
+          <div className="space-y-1.5">
+            {byDials.map((rep, i) => (
+              <SetterRankCard
+                key={rep.name}
+                rank={i + 1}
+                name={rep.name}
+                value={rep.dials}
+                secondary={`${rep.dialsPerHour} / hr`}
+                maxValue={maxDials}
+              />
+            ))}
+          </div>
         </div>
-        <div className="space-y-1.5">
-          {byBooked.map((rep, i) => (
-            <SetterRankCard
-              key={rep.name}
-              rank={i + 1}
-              name={rep.name}
-              value={rep.booked}
-              secondary={`${rep.setRate}% set rate`}
-              maxValue={maxBooked}
-            />
-          ))}
+      ) : (
+        <div>
+          <div className="flex items-center gap-1.5 mb-3">
+            <span className="text-sm">📅</span>
+            <span className="text-xs font-medium text-brand-textFaint uppercase tracking-wider">Calls Booked</span>
+          </div>
+          <div className="space-y-1.5">
+            {byBooked.map((rep, i) => (
+              <SetterRankCard
+                key={rep.name}
+                rank={i + 1}
+                name={rep.name}
+                value={rep.booked}
+                secondary={`${rep.setRate}% set rate`}
+                maxValue={maxBooked}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -418,7 +431,7 @@ function PodiumHero({
 export default async function LeaderboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ period?: string; from?: string; to?: string; closerSort?: string; setterSort?: string; offerId?: string }>;
+  searchParams: Promise<{ period?: string; from?: string; to?: string; closerSort?: string; setterSort?: string; phoneMetric?: string; offerId?: string }>;
 }) {
   let closers: CloserRep[] = [];
   let setters: SetterRep[] = [];
@@ -431,6 +444,7 @@ export default async function LeaderboardPage({
   let rawParams: Record<string, string | undefined> = {};
   let closerSort: CloserSortKey = "cash";
   let setterSort: SetterSortKey = "callsSet";
+  let phoneMetric: PhoneMetricKey = "dials";
   let hasData = false;
 
   try {
@@ -444,6 +458,7 @@ export default async function LeaderboardPage({
     const period = (params.period as PeriodKey) || (settings.defaultPeriod as PeriodKey);
     closerSort = (CLOSER_SORTS.find((s) => s.key === params.closerSort)?.key ?? "cash") as CloserSortKey;
     setterSort = (SETTER_SORTS.find((s) => s.key === params.setterSort)?.key ?? "callsSet") as SetterSortKey;
+    phoneMetric = PHONE_METRICS.find((m) => m.key === params.phoneMetric)?.key ?? "dials";
     hasData = records.closer.length > 0 || records.phone.length > 0 || records.dm.length > 0;
 
     if (hasData) {
@@ -469,7 +484,7 @@ export default async function LeaderboardPage({
       }
     }
 
-    rawParams = { period: params.period, from: params.from, to: params.to, closerSort: params.closerSort, setterSort: params.setterSort, offerId: params.offerId };
+    rawParams = { period: params.period, from: params.from, to: params.to, closerSort: params.closerSort, setterSort: params.setterSort, phoneMetric: params.phoneMetric, offerId: params.offerId };
   } catch (e) {
     console.error("[SalesIO] Leaderboard failed:", e);
     return (
@@ -670,7 +685,7 @@ export default async function LeaderboardPage({
           {phoneStats.length === 0 ? (
             <EmptyState title="No data" description="No phone setter data for this period." />
           ) : (
-            <SetterCardLeaderboard phoneStats={phoneStats} periodLabel={periodLabel} />
+            <SetterCardLeaderboard phoneStats={phoneStats} periodLabel={periodLabel} metric={phoneMetric} searchParams={rawParams} />
           )}
         </Panel>
 

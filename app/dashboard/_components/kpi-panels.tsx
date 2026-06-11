@@ -39,7 +39,6 @@ export function KpiPanels({
     { label: "Show \u2192 Close", val: closerKPIs.showToClose, format: "percent" },
     { label: "Offer \u2192 Close", val: closerKPIs.offerToClose, format: "percent" },
     { label: "Cash / Booked Call", val: closerKPIs.cashPerBookedCall, format: "currency" },
-    { label: "Commissions Paid", val: closerKPIs.commissionsPaid, format: "currency" },
   ];
 
   const setterKpis: Metric[] = [

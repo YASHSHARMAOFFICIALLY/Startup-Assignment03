@@ -45,9 +45,9 @@ export function ObjectionPanel({ entries, title }: { entries: Entry[]; title?: s
                   <span className="text-[12px] text-brand-textSecondary truncate mr-3 capitalize">{o.text}</span>
                   <span className="text-[10px] text-brand-textFaint tabular-nums shrink-0">{o.count}</span>
                 </div>
-                <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-white/[0.2]"
+                    className="h-full rounded-full bg-brand-accent"
                     style={{ width: `${(o.count / maxCount) * 100}%` }}
                   />
                 </div>

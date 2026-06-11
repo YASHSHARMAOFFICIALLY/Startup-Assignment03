@@ -254,7 +254,7 @@ export default async function CloserKpisPage({
           )}
 
           <Panel className="animate-stagger-4 overflow-x-auto">
-            <table className="w-full min-w-[1100px]">
+            <table className="w-full [&_th]:px-1.5 [&_td]:px-1.5 [&_td]:text-[12px]">
               <thead>
                 <tr>
                   <SortableTh label="Rep" field="name" sort={currentSort} basePath="/closer-kpis" query={baseQuery} align="left" />
