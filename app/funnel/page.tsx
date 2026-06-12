@@ -11,25 +11,25 @@ import { EmptyState } from "@/components/ui/empty-state";
 const pct = (a: number, b: number) =>
   b > 0 ? Math.round((a / b) * 100) : 0;
 
-/* ─── Stage colors — gold ramp into brand-positive (Won) ─────────── */
+/* ─── Stage colors — full monochrome ────────────────────────────── */
 
 const STAGE_COLORS = [
-  { dot: "bg-amber-700" },
-  { dot: "bg-amber-600" },
-  { dot: "bg-brand-accent" },
-  { dot: "bg-amber-400" },
-  { dot: "bg-brand-positive" },
+  { dot: "bg-brand-textFaint/40" },
+  { dot: "bg-brand-textFaint/40" },
+  { dot: "bg-brand-textFaint/40" },
+  { dot: "bg-brand-textFaint/40" },
+  { dot: "bg-brand-textFaint/40" },
 ];
 
 /* ─── Funnel chart (segmented trapezoid) ─────────────────────────── */
 
-// Gold ramp matching the brand accent (#F59E0B); final stage = brand-positive
+// Grayscale ramp — light to dark across the pipeline, no accent color
 const SEGMENT_FILLS = [
-  { top: "#B45309", bot: "#92400E" },   // amber-700
-  { top: "#D97706", bot: "#B45309" },   // amber-600
-  { top: "#F59E0B", bot: "#D97706" },   // brand accent
-  { top: "#FBBF24", bot: "#F59E0B" },   // amber-400
-  { top: "#22C55E", bot: "#16A34A" },   // brand positive (Won)
+  { fill: "#FFFFFF", fillOpacity: 0.14, stroke: "#26272B", strokeOpacity: 1 },
+  { fill: "#FFFFFF", fillOpacity: 0.11, stroke: "#26272B", strokeOpacity: 1 },
+  { fill: "#FFFFFF", fillOpacity: 0.08, stroke: "#26272B", strokeOpacity: 1 },
+  { fill: "#FFFFFF", fillOpacity: 0.06, stroke: "#26272B", strokeOpacity: 1 },
+  { fill: "#FFFFFF", fillOpacity: 0.04, stroke: "#26272B", strokeOpacity: 1 },
 ];
 
 function FunnelChart({ stages }: { stages: { label: string; value: number }[] }) {
@@ -74,24 +74,18 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
   return (
     <div className="relative w-full">
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-        <defs>
-          {SEGMENT_FILLS.map((c, i) => (
-            <linearGradient key={i} id={`seg${i}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={c.top} stopOpacity="0.55" />
-              <stop offset="100%" stopColor={c.bot} stopOpacity="0.2" />
-            </linearGradient>
-          ))}
-        </defs>
-
         {/* 5 trapezoid blocks */}
-        {blocks.map((b) => (
+        {blocks.map((b) => {
+          const seg = SEGMENT_FILLS[b.idx % SEGMENT_FILLS.length];
+          return (
           <g key={b.idx}>
             <path
               d={b.path}
-              fill={`url(#seg${b.idx % SEGMENT_FILLS.length})`}
-              stroke={SEGMENT_FILLS[b.idx % SEGMENT_FILLS.length].top}
+              fill={seg.fill}
+              fillOpacity={seg.fillOpacity}
+              stroke={seg.stroke}
               strokeWidth="1"
-              strokeOpacity="0.25"
+              strokeOpacity={seg.strokeOpacity}
             />
             {/* Value inside */}
             <text
@@ -101,8 +95,7 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
               dominantBaseline="middle"
               fontSize="14"
               fontWeight="700"
-              fill="#fff"
-              opacity="0.9"
+              fill="#A1A1AA"
             >
               {b.value.toLocaleString()}
             </text>
@@ -117,11 +110,11 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
               {b.label}
             </text>
           </g>
-        ))}
+          );
+        })}
 
         {/* Conversion pills — one per stage */}
         {convRates.map((cr, i) => {
-          const color = i === 0 ? "#A1A1AA" : cr.rate >= 50 ? "#22C55E" : cr.rate >= 20 ? "#F59E0B" : "#EF4444";
           return (
             <g key={i}>
               <rect
@@ -141,7 +134,7 @@ function FunnelChart({ stages }: { stages: { label: string; value: number }[] })
                 dominantBaseline="middle"
                 fontSize="10"
                 fontWeight="600"
-                fill={color}
+                fill="#A1A1AA"
               >
                 {cr.rate}% →
               </text>
