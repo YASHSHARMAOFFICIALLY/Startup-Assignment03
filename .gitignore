@@ -49,3 +49,6 @@ next-env.d.ts
 audit-report-*.md
 .superstack/
 .claude/
+
+# internal design notes
+docs/
