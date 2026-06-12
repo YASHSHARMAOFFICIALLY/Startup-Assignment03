@@ -21,126 +21,114 @@ const STAGE_COLORS = [
   { dot: "bg-brand-textFaint/40" },
 ];
 
-/* ─── Funnel chart (segmented trapezoid) ─────────────────────────── */
-
-// Grayscale ramp — light to dark across the pipeline, no accent color
-const SEGMENT_FILLS = [
-  { fill: "#FFFFFF", fillOpacity: 0.14, stroke: "#26272B", strokeOpacity: 1 },
-  { fill: "#FFFFFF", fillOpacity: 0.11, stroke: "#26272B", strokeOpacity: 1 },
-  { fill: "#FFFFFF", fillOpacity: 0.08, stroke: "#26272B", strokeOpacity: 1 },
-  { fill: "#FFFFFF", fillOpacity: 0.06, stroke: "#26272B", strokeOpacity: 1 },
-  { fill: "#FFFFFF", fillOpacity: 0.04, stroke: "#26272B", strokeOpacity: 1 },
-];
+/* ─── Funnel chart (smooth silver ribbon) ────────────────────────── */
 
 function FunnelChart({ stages }: { stages: { label: string; value: number }[] }) {
   const max = Math.max(...stages.map((s) => s.value), 1);
   const w = 700;
-  const h = 280;
-  const padX = 10;
-  const midY = 130;
-  const maxHalf = 95;
-  const gap = 3;
-  const segCount = stages.length;
-  const totalGaps = (segCount - 1) * gap;
-  const segW = (w - padX * 2 - totalGaps) / segCount;
+  const h = 240;
+  const midY = 105;
+  const maxHalf = 80;
+  const segW = w / stages.length;
 
-  const heights = stages.map((s) => Math.max((s.value / max) * maxHalf, 10));
+  const heights = stages.map((s) => Math.max((s.value / max) * maxHalf, 5));
+  const centers = stages.map((_, i) => i * segW + segW / 2);
 
-  // Each stage gets its own block; left edge = own height, right edge = next height (or min for last)
-  const blocks = stages.map((s, i) => {
-    const x = padX + i * (segW + gap);
-    const hL = heights[i];
-    const hR = i < stages.length - 1 ? heights[i + 1] : Math.max(heights[i] * 0.6, 10);
-    const cx = x + segW / 2;
+  // Smooth ribbon mirrored around midY: flat at each stage center, S-curve between
+  const curve = (x0: number, y0: number, x1: number, y1: number) => {
+    const d = (x1 - x0) / 2;
+    return `C${x0 + d},${y0} ${x1 - d},${y1} ${x1},${y1}`;
+  };
+  const top = [`M0,${midY - heights[0]}`, `L${centers[0]},${midY - heights[0]}`];
+  const bottom: string[] = [];
+  for (let i = 0; i < stages.length - 1; i++) {
+    top.push(curve(centers[i], midY - heights[i], centers[i + 1], midY - heights[i + 1]));
+    bottom.push(curve(centers[i + 1], midY + heights[i + 1], centers[i], midY + heights[i]));
+  }
+  const last = stages.length - 1;
+  const ribbon = [
+    ...top,
+    `L${w},${midY - heights[last]}`,
+    `L${w},${midY + heights[last]}`,
+    `L${centers[last]},${midY + heights[last]}`,
+    ...bottom.reverse(),
+    `L${centers[0]},${midY + heights[0]}`,
+    `L0,${midY + heights[0]}`,
+    "Z",
+  ].join(" ");
 
-    const path = [
-      `M${x},${midY - hL}`,
-      `L${x + segW},${midY - hR}`,
-      `L${x + segW},${midY + hR}`,
-      `L${x},${midY + hL}`,
-      "Z",
-    ].join(" ");
-
-    return { path, x, cx, hL, hR, idx: i, value: s.value, label: s.label };
-  });
-
-  // Conversion rate for each stage (from previous stage), positioned on each block
-  const pillY = midY - maxHalf - 26;
-  const convRates = stages.map((s, i) => ({
-    rate: i === 0 ? 100 : pct(s.value, stages[i - 1].value),
-    x: blocks[i].cx,
+  // Conversion pills sit on the flow at each stage transition
+  const pills = stages.slice(1).map((s, i) => ({
+    rate: pct(s.value, stages[i].value),
+    x: (centers[i] + centers[i + 1]) / 2,
   }));
 
   return (
     <div className="relative w-full">
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-auto" preserveAspectRatio="xMidYMid meet">
-        {/* 5 trapezoid blocks */}
-        {blocks.map((b) => {
-          const seg = SEGMENT_FILLS[b.idx % SEGMENT_FILLS.length];
-          return (
-          <g key={b.idx}>
-            <path
-              d={b.path}
-              fill={seg.fill}
-              fillOpacity={seg.fillOpacity}
-              stroke={seg.stroke}
+        <defs>
+          <linearGradient id="ribbon" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#C0C5CE" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#C0C5CE" stopOpacity="0.1" />
+          </linearGradient>
+        </defs>
+
+        {/* Stage column dividers */}
+        {centers.slice(0, -1).map((_, i) => (
+          <line
+            key={i}
+            x1={(i + 1) * segW}
+            y1={8}
+            x2={(i + 1) * segW}
+            y2={midY + maxHalf + 4}
+            stroke="#26272B"
+            strokeWidth="1"
+          />
+        ))}
+
+        <path d={ribbon} fill="url(#ribbon)" />
+        <path d={ribbon} fill="none" stroke="#C0C5CE" strokeWidth="1" strokeOpacity="0.2" />
+
+        {/* Stage labels below */}
+        {stages.map((s, i) => (
+          <text
+            key={s.label}
+            x={centers[i]}
+            y={midY + maxHalf + 28}
+            textAnchor="middle"
+            fontSize="11"
+            fill="#8B8B95"
+          >
+            {s.label}
+          </text>
+        ))}
+
+        {/* Conversion pills at transitions */}
+        {pills.map((p, i) => (
+          <g key={i}>
+            <rect
+              x={p.x - 26}
+              y={midY - 11}
+              width="52"
+              height="22"
+              rx="11"
+              fill="#141517"
+              stroke="#26272B"
               strokeWidth="1"
-              strokeOpacity={seg.strokeOpacity}
             />
-            {/* Value inside */}
             <text
-              x={b.cx}
-              y={midY + 5}
+              x={p.x}
+              y={midY + 1}
               textAnchor="middle"
               dominantBaseline="middle"
-              fontSize="14"
-              fontWeight="700"
+              fontSize="10"
+              fontWeight="600"
               fill="#A1A1AA"
             >
-              {b.value.toLocaleString()}
-            </text>
-            {/* Label below */}
-            <text
-              x={b.cx}
-              y={midY + maxHalf + 22}
-              textAnchor="middle"
-              fontSize="11"
-              fill="#8B8B95"
-            >
-              {b.label}
+              {p.rate}% →
             </text>
           </g>
-          );
-        })}
-
-        {/* Conversion pills — one per stage */}
-        {convRates.map((cr, i) => {
-          return (
-            <g key={i}>
-              <rect
-                x={cr.x - 22}
-                y={pillY}
-                width="44"
-                height="22"
-                rx="11"
-                fill="#141517"
-                stroke="#26272B"
-                strokeWidth="1"
-              />
-              <text
-                x={cr.x}
-                y={pillY + 14}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="10"
-                fontWeight="600"
-                fill="#A1A1AA"
-              >
-                {cr.rate}% →
-              </text>
-            </g>
-          );
-        })}
+        ))}
       </svg>
     </div>
   );
@@ -318,17 +306,17 @@ export default async function FunnelPage({
 
       {/* Funnel chart */}
       <Panel className="animate-stagger-3">
-        <div className="text-xs font-medium tracking-wider uppercase text-brand-textFaint mb-3">
+        <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">
           Pipeline Stages
-        </div>
+        </h3>
         <FunnelChart stages={stages} />
       </Panel>
 
       {/* Setter → Closer Handoff seam */}
       <Panel className="ring-1 ring-brand-accent/20 animate-stagger-4">
-        <div className="text-xs font-medium tracking-wider uppercase text-brand-textFaint mb-3">
+        <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">
           Setter → Closer Handoff
-        </div>
+        </h3>
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex flex-col items-center gap-0.5 min-w-[72px]">
             <span className="text-[11px] text-brand-textFaint">Setter Shows</span>
@@ -390,16 +378,16 @@ export default async function FunnelPage({
       {/* Payments & Collections */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-stagger-5">
         <Panel>
-          <div className="text-xs font-medium tracking-wider uppercase text-brand-textFaint mb-3">
+          <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">
             Upcoming Payments
-          </div>
+          </h3>
           <div className="text-xs text-brand-textFaint mb-1">Total Pending</div>
           <div className="text-2xl font-semibold text-brand-textPrimary tabular-nums">{fmtCurrency(cashToCollect)}</div>
         </Panel>
         <Panel>
-          <div className="text-xs font-medium tracking-wider uppercase text-brand-textFaint mb-3">
+          <h3 className="text-xs font-medium text-brand-textFaint uppercase tracking-wider mb-3">
             Recent Collections
-          </div>
+          </h3>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <div className="text-xs text-brand-textFaint mb-1">Cash Collected</div>
