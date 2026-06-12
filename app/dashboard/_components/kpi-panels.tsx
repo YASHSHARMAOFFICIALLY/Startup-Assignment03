@@ -48,7 +48,6 @@ export function KpiPanels({
     { label: "DM Book Rate", val: setterKPIs.dmBookRate, format: "percent" },
     { label: "DM Show Rate", val: setterKPIs.dmShowRate, format: "percent" },
     { label: "Revenue Generated", val: setterKPIs.revenueGenerated, format: "currency" },
-    { label: "Cash Collected", val: setterKPIs.cashCollected, format: "currency" },
   ];
 
   return (
