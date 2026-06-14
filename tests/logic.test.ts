@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { parseCSV, num, dayKey, priorRange, aggregate } from "@/lib/sheet-sync";
+import {
+  parseCSV,
+  num,
+  dayKey,
+  priorRange,
+  aggregate,
+  normalizeHeader,
+  resolveColumns,
+  dayRating,
+} from "@/lib/sheet-sync";
 import { resolvePeriod } from "@/lib/period";
 import { parseSort, sortRows } from "@/lib/sort";
 import { fmtCurrency, fmtPercentOrDash } from "@/lib/formatters";
@@ -548,5 +557,121 @@ describe("fmtPercentOrDash", () => {
 
   it("formats 100%", () => {
     expect(fmtPercentOrDash(100)).toBe("100%");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* HEADER-BASED COLUMN MAPPING                                          */
+/* ------------------------------------------------------------------ */
+
+const CLOSER_SCHEMA: Record<string, string[]> = {
+  NAME: ["closer name"],
+  DATE: ["date of eod"],
+  TOTAL: ["total calls on calendar", "total sales calls on calendar"],
+  NOSHOW: ["no shows"],
+  CANCEL: ["cancelations by us prospect"],
+  RESCHED: ["reschedules"],
+  LIVE: ["live calls"],
+  OFFERS: ["offers made calls pitched"],
+  DEPOSITS: ["deposits collected"],
+  CLOSED: ["calls closed"],
+  REV: ["total revenue generated"],
+  CASH: ["total cash collected"],
+  MRR: ["mrr collected today"],
+  DAY_RATING: ["your day 10"],
+  OBJECTION: ["what was the most common objection today"],
+  DID_WELL: ["what did you do well today"],
+  IMPROVE: ["what can you improve on tomorrow"],
+  REVIEW_LINK: ["any calls you want to review"],
+};
+const PHONE_SCHEMA: Record<string, string[]> = {
+  NAME: ["setter name"],
+  DATE: ["date of eod"],
+  SHOWS: ["shows on closer calendars"],
+  CASH: ["total cash collected"],
+};
+
+describe("normalizeHeader", () => {
+  it("decodes entities, lowercases, strips punctuation and trailing space", () => {
+    expect(normalizeHeader("Cancelations by Us &amp; Prospect ")).toBe(
+      "cancelations by us prospect",
+    );
+    expect(normalizeHeader("Calls Closed?")).toBe("calls closed");
+    expect(normalizeHeader("Your Day /10? ")).toBe("your day 10");
+    expect(normalizeHeader("Offers Made/Calls Pitched")).toBe(
+      "offers made calls pitched",
+    );
+  });
+});
+
+describe("resolveColumns", () => {
+  // Offer 1 ("EFF") closer header row — the legacy layout.
+  const offer1Closer = [
+    "Submission ID", "Respondent ID", "Submitted at", "Closer Name:",
+    "Date of EOD: ", "Total Calls on Calendar:", "No Shows",
+    "Cancelations by Us &amp; Prospect ", "Reschedules", "Live Calls",
+    "Offers Made/Calls Pitched", "Deposits Collected ", "Calls Closed?",
+    "Total Revenue Generated", "Total Cash Collected", "MRR Collected Today",
+    "Your Day /10? ", "obj", "well", "improve", "review",
+  ];
+  // Offer 2 ("Understanding Attraction") closer — extra "Total Game Plan Calls"
+  // inserted at index 6, shifting every later field by +1.
+  const offer2Closer = [
+    "Submission ID", "Respondent ID", "Submitted at", "Closer Name:",
+    "Date of EOD: ", "Total Sales Calls on Calendar:", "Total Game Plan Calls",
+    "No Shows", "Cancelations by Us & Prospect ", "Reschedules", "Live Calls",
+    "Offers Made/Calls Pitched", "Deposits Collected ", "Calls Closed?",
+    "Total Revenue Generated", "Total Cash Collected", "MRR Collected Today",
+    "Your Day /10? ", "obj", "well", "improve", "review",
+  ];
+
+  it("matches the legacy indices for offer 1", () => {
+    const m = resolveColumns(offer1Closer, CLOSER_SCHEMA, "closer");
+    expect(m.NAME).toBe(3);
+    expect(m.TOTAL).toBe(5);
+    expect(m.CASH).toBe(14);
+  });
+
+  it("resolves CASH past the inserted column for offer 2 (drift fixed)", () => {
+    const m = resolveColumns(offer2Closer, CLOSER_SCHEMA, "closer");
+    // Cash shifted to 15 by the extra column; index-based parsing read 14 (revenue).
+    expect(m.CASH).toBe(15);
+    expect(m.TOTAL).toBe(5); // accepts the "Total Sales Calls..." alias
+  });
+
+  it("flags a genuinely missing non-critical column without throwing", () => {
+    // Offer 2 phone tab has no "Shows on Closer Calendars".
+    const header = ["x", "y", "z", "Setter Name:", "Date of EOD: ", "Total Cash Collected"];
+    const m = resolveColumns(header, PHONE_SCHEMA, "phone");
+    expect(m.SHOWS).toBe(-1);
+    expect(m.CASH).toBe(5);
+  });
+
+  it("takes the first occurrence when headers are duplicated", () => {
+    const dup = [...offer1Closer, ...offer1Closer];
+    const m = resolveColumns(dup, CLOSER_SCHEMA, "closer");
+    expect(m.CASH).toBe(14);
+  });
+
+  it("throws when Name or Date cannot be resolved", () => {
+    expect(() =>
+      resolveColumns(["a", "b", "c"], CLOSER_SCHEMA, "closer"),
+    ).toThrow(/Name or Date/);
+  });
+});
+
+describe("dayRating", () => {
+  it("passes through plain numeric ratings", () => {
+    expect(dayRating("9")).toBe(9);
+    expect(dayRating("10")).toBe(10);
+  });
+  it("decodes date-formatted ratings via day-of-month", () => {
+    expect(dayRating("1900-01-07 0:00:00")).toBe(7);
+    expect(dayRating("1900-01-05")).toBe(5);
+    expect(dayRating("1900-1-8")).toBe(8);
+  });
+  it("returns 0 for blank", () => {
+    expect(dayRating("")).toBe(0);
+    expect(dayRating(undefined)).toBe(0);
   });
 });

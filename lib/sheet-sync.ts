@@ -46,6 +46,15 @@ export function num(value: string | undefined): number {
   const n = parseFloat(value.replace(/[$,%\s]/g, ""));
   return Number.isFinite(n) ? n : 0;
 }
+
+// Parse a /10 day rating. Some sheets store the score in a date-formatted cell
+// (e.g. "1900-01-07"), where the day-of-month is the actual rating.
+export function dayRating(value: string | undefined): number {
+  if (!value) return 0;
+  const m = value.match(/^1900-0?1-(\d{1,2})\b/);
+  if (m) return Number(m[1]);
+  return num(value);
+}
 const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 const round = (n: number) => Math.round(n);
 
@@ -81,11 +90,108 @@ export function dayKey(value: string | undefined): string | null {
   return null;
 }
 
-/* --------------------------- Raw column maps ----------------------------- */
+/* ----------------------- Header-based column maps ------------------------ */
+// Columns are resolved by matching the sheet's header row against the aliases
+// below, NOT by fixed position — offers have differing schemas (e.g. inserted
+// columns) that would otherwise shift every field and misread the data.
 
-const C = { NAME: 3, DATE: 4, TOTAL: 5, NOSHOW: 6, CANCEL: 7, RESCHED: 8, LIVE: 9, OFFERS: 10, DEPOSITS: 11, CLOSED: 12, REV: 13, CASH: 14, MRR: 15, DAY_RATING: 16, OBJECTION: 17, DID_WELL: 18, IMPROVE: 19, REVIEW_LINK: 20 };
-const P = { NAME: 3, DATE: 4, HOURS: 5, PICKUPS: 6, DIALS: 7, QCONVOS: 8, SHORT_CONVOS: 9, BOOKED: 10, SHOWS: 11, NOSHOW: 12, RESCHED: 13, CLOSED: 14, REV: 15, CASH: 16, DAY_RATING: 17, OBJECTION: 18, DID_WELL: 19, IMPROVE: 20, REVIEW_LINK: 21 };
-const D = { NAME: 3, DATE: 4, CONVOS: 5, SWIPE_UPS: 6, FOLLOW_UPS: 7, BOOKED: 8, ON_CALENDAR: 9, LIVE: 10, SETS_CLOSED: 11, REV: 12, CASH: 13, DAY_RATING: 14, OBJECTION: 15, DID_WELL: 16, IMPROVE: 17, REVIEW_LINK: 18 };
+// Decode entities, lowercase, collapse non-alphanumeric runs to single spaces.
+export function normalizeHeader(raw: string | undefined): string {
+  return (raw ?? "")
+    .replace(/&amp;/g, "&")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+// Each field lists the normalized header strings accepted across offers.
+const CLOSER_SCHEMA: Record<string, string[]> = {
+  NAME: ["closer name"],
+  DATE: ["date of eod"],
+  TOTAL: ["total calls on calendar", "total sales calls on calendar"],
+  NOSHOW: ["no shows"],
+  CANCEL: ["cancelations by us prospect"],
+  RESCHED: ["reschedules"],
+  LIVE: ["live calls"],
+  OFFERS: ["offers made calls pitched"],
+  DEPOSITS: ["deposits collected"],
+  CLOSED: ["calls closed"],
+  REV: ["total revenue generated"],
+  CASH: ["total cash collected"],
+  MRR: ["mrr collected today"],
+  DAY_RATING: ["your day 10"],
+  OBJECTION: ["what was the most common objection today"],
+  DID_WELL: ["what did you do well today"],
+  IMPROVE: ["what can you improve on tomorrow"],
+  REVIEW_LINK: ["any calls you want to review"],
+};
+const PHONE_SCHEMA: Record<string, string[]> = {
+  NAME: ["setter name"],
+  DATE: ["date of eod"],
+  HOURS: ["hours worked"],
+  PICKUPS: ["total number of pick us"],
+  DIALS: ["total dials completed"],
+  QCONVOS: ["number of quality convos 2 mins"],
+  SHORT_CONVOS: ["conversations under 2 minutes"],
+  BOOKED: ["calls booked"],
+  SHOWS: ["shows on closer calendars"],
+  NOSHOW: ["no shows"],
+  RESCHED: ["reschedules"],
+  CLOSED: ["calls closed"],
+  REV: ["total revenue generated"],
+  CASH: ["total cash collected"],
+  DAY_RATING: ["your day 10"],
+  OBJECTION: ["what was the most common objection today"],
+  DID_WELL: ["what did you do well today"],
+  IMPROVE: ["what can you improve on tomorrow"],
+  REVIEW_LINK: ["any calls you want to review"],
+};
+const DM_SCHEMA: Record<string, string[]> = {
+  NAME: ["dm setter name"],
+  DATE: ["date of eod"],
+  CONVOS: ["new conversations started"],
+  SWIPE_UPS: ["number of story swipe ups"],
+  FOLLOW_UPS: ["follow ups sent"],
+  BOOKED: ["number of calls booked"],
+  ON_CALENDAR: ["number of calls on calendar"],
+  LIVE: ["live calls"],
+  SETS_CLOSED: ["sets closed"],
+  REV: ["total revenue contracted"],
+  CASH: ["total cash collected"],
+  DAY_RATING: ["rate today 10"],
+  OBJECTION: ["most common objection resistance point"],
+  DID_WELL: ["what did you do well today"],
+  IMPROVE: ["what can you improve on tomorrow"],
+  REVIEW_LINK: ["any dm conversations to be reviewed"],
+};
+
+// Resolve each field to its column index via the header row (first match wins,
+// so duplicated header blocks are harmless). Unmatched fields -> -1.
+export function resolveColumns(
+  headerRow: string[],
+  schema: Record<string, string[]>,
+  tabName: string,
+): Record<string, number> {
+  const normalized = headerRow.map(normalizeHeader);
+  const map: Record<string, number> = {};
+  const unmatched: string[] = [];
+  for (const [field, aliases] of Object.entries(schema)) {
+    const idx = normalized.findIndex((h) => aliases.includes(h));
+    map[field] = idx;
+    if (idx === -1) unmatched.push(field);
+  }
+  if (map.NAME === -1 || map.DATE === -1) {
+    throw new Error(
+      `"${tabName}" is missing a recognizable Name or Date column. Check the sheet headers.`,
+    );
+  }
+  if (unmatched.length > 0) {
+    console.warn(
+      `[sheet-sync] ${tabName}: columns not found, defaulting to 0/empty -> ${unmatched.join(", ")}`,
+    );
+  }
+  return map;
+}
 
 /* ------------------------------- Records --------------------------------- */
 
@@ -167,6 +273,10 @@ export async function fetchRecordsFromOffer(
     fetchNamedTab(spreadsheetId(offer.dmSetterSheetUrl), "Tally_DMSetter_Raw"),
   ]);
 
+  const C = resolveColumns(closerRaw[0] ?? [], CLOSER_SCHEMA, "Tally_Closer_Raw");
+  const P = resolveColumns(phoneRaw[0] ?? [], PHONE_SCHEMA, "Tally_PhoneSetter_Raw");
+  const D = resolveColumns(dmRaw[0] ?? [], DM_SCHEMA, "Tally_DMSetter_Raw");
+
   const closer: CloserRecord[] = [];
   for (const r of dataRows(closerRaw)) {
     const date = dayKey(r[C.DATE]);
@@ -185,7 +295,7 @@ export async function fetchRecordsFromOffer(
       revenue: num(r[C.REV]),
       cash: num(r[C.CASH]),
       mrr: num(r[C.MRR]),
-      dayRating: num(r[C.DAY_RATING]),
+      dayRating: dayRating(r[C.DAY_RATING]),
       objection: (r[C.OBJECTION] ?? "").trim(),
       didWell: (r[C.DID_WELL] ?? "").trim(),
       improve: (r[C.IMPROVE] ?? "").trim(),
@@ -212,7 +322,7 @@ export async function fetchRecordsFromOffer(
       closed: num(r[P.CLOSED]),
       revenue: num(r[P.REV]),
       cash: num(r[P.CASH]),
-      dayRating: num(r[P.DAY_RATING]),
+      dayRating: dayRating(r[P.DAY_RATING]),
       objection: (r[P.OBJECTION] ?? "").trim(),
       didWell: (r[P.DID_WELL] ?? "").trim(),
       improve: (r[P.IMPROVE] ?? "").trim(),
@@ -236,7 +346,7 @@ export async function fetchRecordsFromOffer(
       setsClosed: num(r[D.SETS_CLOSED]),
       revenue: num(r[D.REV]),
       cash: num(r[D.CASH]),
-      dayRating: num(r[D.DAY_RATING]),
+      dayRating: dayRating(r[D.DAY_RATING]),
       objection: (r[D.OBJECTION] ?? "").trim(),
       didWell: (r[D.DID_WELL] ?? "").trim(),
       improve: (r[D.IMPROVE] ?? "").trim(),
