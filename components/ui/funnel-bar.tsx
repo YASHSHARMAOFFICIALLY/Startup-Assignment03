@@ -10,6 +10,10 @@ export function FunnelBar({ stages }: { stages: Stage[] }) {
       {stages.map((stage, i) => {
         const widthPct = Math.max((stage.value / max) * 100, 8);
         const conversion = i > 0 ? pct(stage.value, stages[i - 1].value) : null;
+        // Monochrome ramp: each stage steps light -> dark so the bars read as
+        // distinct steps instead of one flat tone. White alpha keeps it gray.
+        const t = stages.length > 1 ? i / (stages.length - 1) : 0;
+        const shade = 0.3 - t * 0.24; // 0.30 (light) -> 0.06 (dark)
 
         return (
           <div key={stage.label} className="flex items-end gap-1.5 sm:gap-2" style={{ flex: widthPct }}>
@@ -23,7 +27,10 @@ export function FunnelBar({ stages }: { stages: Stage[] }) {
               <div className="text-[11px] font-normal text-brand-textSecondary tabular-nums mb-1 truncate">
                 {stage.value.toLocaleString()}
               </div>
-              <div className="h-6 sm:h-7 rounded bg-white/[0.04]" />
+              <div
+                className="h-6 sm:h-7 rounded"
+                style={{ backgroundColor: `rgba(255,255,255,${shade.toFixed(3)})` }}
+              />
               <div className="text-[9px] text-brand-textFaint mt-1 truncate uppercase tracking-wider">{stage.label}</div>
             </div>
           </div>
