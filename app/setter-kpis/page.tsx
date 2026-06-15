@@ -297,7 +297,10 @@ export default async function SetterKpisPage({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px]">
+              {/* 14-col phone table: compact padding/font so it fits the panel
+                  without horizontal scroll on desktop. overflow-x-auto above
+                  stays only as a small-screen fallback. */}
+              <table className="w-full [&_th]:px-1.5 [&_th]:tracking-normal [&_td]:px-1.5 [&_td]:py-2.5 [&_td]:text-[12px]">
                 <thead>
                   <tr>
                     <SortableTh label="Rep" field="name" sort={pCurrentSort} basePath="/setter-kpis" query={{ ...phoneQuery }} paramName="psort" align="left" />
@@ -393,7 +396,7 @@ export default async function SetterKpisPage({
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[750px]">
+              <table className="w-full [&_th]:px-2 [&_td]:px-2">
                 <thead>
                   <tr>
                     <SortableTh label="Rep" field="name" sort={dCurrentSort} basePath="/setter-kpis" query={{ ...dmQuery }} paramName="dsort" align="left" />

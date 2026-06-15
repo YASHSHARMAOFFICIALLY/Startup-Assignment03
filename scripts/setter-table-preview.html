@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Setter phone table — compact preview</title>
+<style>
+  body { margin:0; background:#0A0A0B; color:#fff; font-family: ui-sans-serif, system-ui, -apple-system, Inter, sans-serif; padding:24px; }
+  .note { color:#8a8f98; font-size:12px; margin:0 0 12px; }
+  /* Panel widths to sanity-check different desktop sizes */
+  .panel { background:#141517; border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:24px; margin:0 0 22px; }
+  .w1100 { width:1100px; } .w980 { width:980px; } .w860 { width:860px; }
+  table { width:100%; border-collapse:collapse; }
+  /* mirrors shared th + the page-scoped compact overrides */
+  th { padding:8px 6px; font-weight:400; font-size:10px; color:#6b7280; text-transform:uppercase; letter-spacing:normal; text-align:center; white-space:nowrap; }
+  th.l { text-align:left; } th.r { text-align:right; }
+  td { padding:10px 6px; font-size:12px; color:#c4c7cc; font-variant-numeric:tabular-nums; white-space:nowrap; border-top:1px solid rgba(255,255,255,.03); text-align:center; }
+  td.l { text-align:left; color:#e5e7eb; font-weight:500; } td.r { text-align:right; }
+  .scrollwrap { overflow-x:auto; }
+</style>
+</head>
+<body>
+  <p class="note">Compact phone table (14 cols, px-1.5 / 12px). If it fits the panel with no horizontal scrollbar, we're good. Three panel widths shown.</p>
+  <div class="panel w1100"><div class="scrollwrap"><div id="t1100"></div></div><div class="note" style="margin:10px 0 0">panel ≈ 1100px (≈1440px screen)</div></div>
+  <div class="panel w980"><div class="scrollwrap"><div id="t980"></div></div><div class="note" style="margin:10px 0 0">panel ≈ 980px (≈1280px screen)</div></div>
+  <div class="panel w860"><div class="scrollwrap"><div id="t860"></div></div><div class="note" style="margin:10px 0 0">panel ≈ 860px (smaller laptop)</div></div>
+<script>
+  const cols = [
+    {h:"Rep",a:"l"},{h:"Hours"},{h:"Dials"},{h:"Pickups"},{h:"Q Convos"},{h:"Booked"},{h:"Shows"},
+    {h:"Set%",a:"r"},{h:"Show%",a:"r"},{h:"D/Hr",a:"r"},{h:"Dials/Bkd",a:"r"},{h:"Pickup%",a:"r"},{h:"Convos/Hr",a:"r"},{h:"Revenue",a:"r"}
+  ];
+  const rows = [
+    ["Christopher M.","6","312","48","22","9","7","41%","78%","52.0","34.7","15%","3.7","$12,400"],
+    ["Alessandra R.","5","268","39","18","7","5","39%","71%","53.6","38.3","15%","3.6","$8,100"],
+    ["Tim","4","95","12","6","3","2","50%","67%","23.8","31.7","13%","1.5","$0"],
+  ];
+  function build(id, w){
+    const t=document.createElement("table");
+    const thead="<thead><tr>"+cols.map(c=>`<th class="${c.a||''}">${c.h}</th>`).join("")+"</tr></thead>";
+    const tbody="<tbody>"+rows.map(r=>"<tr>"+r.map((v,i)=>`<td class="${cols[i].a||''}">${v}</td>`).join("")+"</tr>").join("")+"</tbody>";
+    t.innerHTML=thead+tbody;
+    document.getElementById(id).appendChild(t);
+  }
+  build("t1100"); build("t980"); build("t860");
+</script>
+</body>
+</html>
