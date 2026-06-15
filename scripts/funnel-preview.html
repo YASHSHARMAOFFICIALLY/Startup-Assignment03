@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>FunnelBar shade preview</title>
+<style>
+  body { margin:0; background:#0A0A0B; color:#fff; font-family: ui-sans-serif, system-ui, -apple-system, Inter, sans-serif; padding:40px; }
+  .panel { background:#141517; border:1px solid rgba(255,255,255,.06); border-radius:12px; padding:24px; max-width:560px; margin:0 auto 28px; }
+  h2 { font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#8a8f98; margin:0 0 18px; font-weight:500; }
+  .funnel { display:flex; align-items:flex-end; gap:8px; }
+  .stage { display:flex; align-items:flex-end; gap:8px; }
+  .arrow { display:flex; flex-direction:column; align-items:center; flex-shrink:0; margin-left:-6px; }
+  .arrow .pct { font-size:10px; color:#6b7280; font-variant-numeric:tabular-nums; }
+  .arrow .gt { color:rgba(107,114,128,.4); font-size:8px; line-height:1; }
+  .col { flex:1; min-width:0; }
+  .val { font-size:11px; color:#c4c7cc; font-variant-numeric:tabular-nums; margin-bottom:4px; }
+  .bar { height:28px; border-radius:4px; }
+  .lbl { font-size:9px; color:#6b7280; margin-top:4px; text-transform:uppercase; letter-spacing:.08em; }
+</style>
+</head>
+<body>
+  <div class="panel">
+    <h2>Before — flat (all bars white 4%)</h2>
+    <div class="funnel" id="before"></div>
+  </div>
+  <div class="panel">
+    <h2>After — light&rarr;dark ramp (white 30% &rarr; 18% &rarr; 6%)</h2>
+    <div class="funnel" id="after"></div>
+  </div>
+<script>
+  const stages = [
+    { label:"Total Calls", value:126 },
+    { label:"Live Calls", value:78 },
+    { label:"Offers", value:41 },
+  ];
+  const max = Math.max(...stages.map(s=>s.value),1);
+  function render(el, ramp){
+    stages.forEach((s,i)=>{
+      const w = Math.max((s.value/max)*100,8);
+      const wrap = document.createElement("div");
+      wrap.className="stage"; wrap.style.flex = w;
+      if(i>0){
+        const prev = stages[i-1].value;
+        const pct = prev>0?Math.round(s.value/prev*100):0;
+        wrap.innerHTML = `<div class="arrow"><span class="pct">${pct}%</span><span class="gt">&rarr;</span></div>`;
+      }
+      const t = stages.length>1 ? i/(stages.length-1) : 0;
+      const a = ramp ? (0.30 - t*0.24) : 0.04;
+      const col = document.createElement("div");
+      col.className="col";
+      col.innerHTML = `<div class="val">${s.value.toLocaleString()}</div>`+
+        `<div class="bar" style="background:rgba(255,255,255,${a.toFixed(3)})"></div>`+
+        `<div class="lbl">${s.label}</div>`;
+      wrap.appendChild(col);
+      el.appendChild(wrap);
+    });
+  }
+  render(document.getElementById("before"), false);
+  render(document.getElementById("after"), true);
+</script>
+</body>
+</html>
