@@ -22,7 +22,19 @@ export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
 
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  // A missing CRON_SECRET makes the cron 401 forever with no trace — the exact
+  // silent failure that kept auto-sync broken. Audit-log it so it's visible.
+  // A bad bearer (secret set, wrong/absent header) is left unlogged to avoid
+  // flooding the audit log with unauthenticated internet scans.
+  if (!cronSecret) {
+    await logAudit({
+      action: "cron_sync_misconfigured",
+      resource: "settings",
+      detail: "CRON_SECRET is not set — cron cannot run.",
+    });
+    return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  }
+  if (authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -110,6 +122,14 @@ export async function GET(request: Request) {
     revalidatePath("/setter-kpis");
     revalidatePath("/leaderboard");
     revalidatePath("/funnel");
+  } else {
+    // Heartbeat: a run where every offer was skipped logs nothing per-offer,
+    // which is what hid the broken cron. Record proof the cron executed.
+    await logAudit({
+      action: "cron_sync",
+      resource: "settings",
+      detail: `ran, nothing synced — ${results.map((r) => r.status).join("; ") || "no offers"}`,
+    });
   }
 
   return NextResponse.json({
